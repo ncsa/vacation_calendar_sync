@@ -1,0 +1,5 @@
+1. Before running the docker run command, make sure that mount-src is empty
+2. Once the docker run command is excuted, copy over the authenticate.py file to mount-src so you'll be able to work on it and 
+have it run in the docker container 
+3. When you are done working on the file, copy the authenticate.py in mount-src to the duo_auth/authenticate.py file. 
+4. Remove the authenticate.py in the mount-src folder. 

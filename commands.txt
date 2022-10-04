@@ -1,0 +1,25 @@
+Command to build the image:
+docker build -t duo-image:latest . 
+
+Command to run the image w/o mounting:
+docker run -d --name duo-container duo-image tail -f /dev/null
+
+Command to run the image w/ mounting:
+docker run -d --name duo-container -it --mount type=bind,source="$(pwd)/mount-src",target=/duo_auth/app duo-image tail -f /dev/null
+
+
+The -it instructs Docker to allocate a pseudo-TTY connected to the container’s stdin; 
+creating an interactive bash shell in the container
+
+Command to use bash in the container 
+docker exec -it duo-container bash 
+Question: If I have the -it option in the docker run and docker exec commands, it works.
+If I take out the -it option from the docker run command, and I run the docker exec command, it still works. 
+So do I really need to have the -it in the docker run command?
+
+To start an existing container which is stopped
+docker start <container-name/ID>
+To stop a running container
+docker stop <container-name/ID>
+Then to login to the interactive shell of a container
+docker exec -it <container-name/ID> bash
