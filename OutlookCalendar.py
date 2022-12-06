@@ -54,11 +54,14 @@ class OutlookCalendar:
         Authenticates to Outlook as part of the the initialization process to the Microsoft Graph API
     """
 
-    def __init__(self) -> None:    
+    def __init__(self, is_initial_use) -> None:    
         """
+        Initializes the members variables by retrieving the netrc and yaml file 
+
         Parameters
         ----------
-        Initializes the members variables by retrieving the netrc and yaml file 
+        is_initial_use
+            Indicates whether this is first time running script
         """
 
         self.credential = self.get_credentials() 
@@ -90,7 +93,7 @@ class OutlookCalendar:
                 self.shared_calendar_name = dictionary['shared_calendar_name'] 
                 # TODO: What if the user doesn't provide shared_calendar_name. What if they jsut want a report and not the shared calendar feature 
            
-            self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes)
+            self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes, is_initial_use)
             
             self.keywords = ['vacation', 'break', 'timeoff', 'PTO', 'sick']
         
@@ -117,7 +120,7 @@ class OutlookCalendar:
             raise UserWarning('Empty passwd not allowed')
         return (username, password)
 
-    def initialize_graph_for_user_auth(self, client_id, tenant_id, scope):
+    def initialize_graph_for_user_auth(self, client_id, tenant_id, scope, is_initial_use):
         """
         Initializes the Microsoft Graph API abd return user_client object returned by GraphClient 
 
@@ -129,19 +132,23 @@ class OutlookCalendar:
             The Directory (tenant) ID that is shown on the Microsoft Azure Project Page 
         scope : str
             The scope that list the permissions for the project
+        is_initial_use
+            Indicates whether this is first time running script
 
         """
 
         device_code_credential = DeviceCodeCredential(client_id, tenant_id = tenant_id)
         user_client = GraphClient(credential=device_code_credential, scopes=scope.split(' '))
+
+
+        if (is_initial_use == False): 
+            # Creates a background thread to authenticate with Outlook including verifying access code, logging into Outlook, and accepting DUO Push notification
+            tmp = sys.stdout
+            redirected_output = StringIO()
+            sys.stdout = redirected_output
         
-        # Creates a background thread to authenticate with Outlook including verifying access code, logging into Outlook, and accepting DUO Push notification
-        tmp = sys.stdout
-        redirected_output = StringIO()
-        sys.stdout = redirected_output
-        
-        background_thread = threading.Thread(target=self.authentication_to_outlook, args=(redirected_output, tmp))
-        background_thread.start()
+            background_thread = threading.Thread(target=self.authentication_to_outlook, args=(redirected_output, tmp))
+            background_thread.start()
 
         self.access_token = device_code_credential.get_token(scope)
         
@@ -283,7 +290,8 @@ Program is controlled using the following environment variables:
 
         parser.add_argument('-s', '--shared', action='store_true', help='Feature to generate report')
         parser.add_argument('-r', '--report', action='store_true', help='Feature to update shared calendar')        
-        parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')        
+        parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
+        parser.add_argument('-i', '--is_initial_use', action='store_true', help='Indicates whether this is first time running script')        
         parser.add_argument(dest= 'start_date', action='store', help='The start date of the timeframe. date format: YYYY-MM-DD')
         parser.add_argument(dest= 'end_date', action='store', help='The end date of the timeframe. date format: YYYY-MM-DD')
 
@@ -291,8 +299,6 @@ Program is controlled using the following environment variables:
         
         #print(args.start_date, args.end_date, args.shared, args.report)
         return args
-
-        
 
 if __name__ == '__main__':
     # python3 OutlookCalendar.py [start date] [end date]
@@ -302,7 +308,7 @@ if __name__ == '__main__':
     start_date = args.start_date
     end_date = args.end_date
     
-    my_calendar = OutlookCalendar()
+    my_calendar = OutlookCalendar(args.is_initial_use)
 
     # Retrieves each group member's default calendar 
     calendar = my_calendar.get_group_members_calendars(my_calendar.user_client, start_date, end_date)

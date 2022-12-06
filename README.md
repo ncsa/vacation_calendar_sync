@@ -3,6 +3,7 @@
 - Update shared calendar to synchronize with members' calendars with events that are "away". 
 
 # Setup
+
 Microsoft Azure Project Config (`/root/microsoft_graph_auth.yaml`)
 ``` yaml
 ---
@@ -49,6 +50,8 @@ Other optional flags include:
 `-s` : Retrieves members' calendar events and synchronize them to the shared calendar
 
 `-d` : Dumps the json data of member's events occuring between the start and end date
+
+`-i` : Indicates whether this is first time running script. If it is, this flag must be used.
 
 `-h` : Display the help screen
 # Notes
