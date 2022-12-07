@@ -207,7 +207,6 @@ class AuthenticateDevice:
         #####################################################
         
         g2 = Grab()
-        #self.debug_print_response(g)
 
         scope = self.find_value_to_key(g, 'scope')
         response_mode = self.find_value_to_key(g, 'response_mode')
@@ -252,12 +251,9 @@ class AuthenticateDevice:
         
 
         #####################################################
-
         g2.submit()
-
         #####################################################
         g2.submit()
-        
         #####################################################
         g2.submit()
         # the response has _xsrf token 

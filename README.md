@@ -31,7 +31,7 @@ docker pull phongtran27/outlook_calendar_report_generator
 
 # Build Container 
 ```
-docker run -it --name outlook-calendar-container --mount type=bind,source=$HOME,dst=/home outlook-calendar-report-generator
+docker run -it --name outlook_calendar_container --mount type=bind,source=$HOME,dst=/home outlook_calendar_report_generator
 ```
 
 

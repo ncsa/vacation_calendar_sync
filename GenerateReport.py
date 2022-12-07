@@ -88,11 +88,6 @@ class GenerateReport:
             self.start_date = self.date_parser(event['start']['dateTime'])
             self.end_date = self.date_parser(event['end']['dateTime'])
 
-            # print("net_id type: " + str(type(self.net_id)))
-            # print("status type: " + str(type(self.status)))
-            # print("subject type: " + str(type(self.subject)))
-            # print("-------------------------")
-
         def date_parser(self, date):
             """
             Parses the date into a tuple of date (str) and time (str) and return the tuple
@@ -140,7 +135,6 @@ class GenerateReport:
             The end date of the timeframe (YYYY-MM-DD)
         """
         
-        #print(calendar)
         self.calendar = calendar
         self.group_members = group_members
         events = self.filter_dates(self.calendar)
@@ -219,7 +213,6 @@ class GenerateReport:
             events = []
             calendar_dict[key] = events
             for item in value:
-                #print("here")
                 calendar_dict[key].append(item.get_event())
         
         calendar_as_json = json.dumps(calendar_dict)
@@ -281,7 +274,7 @@ class GenerateReport:
             date = datetime(int(key[:4]), int(key[4:6]), int(key[6:]), 0, 0, 0)
             day = date.strftime('%A')
             header = [day + " " + key[4:6] + "-" + key[6:] + "-" + key[:4], ""]
-            #print(header)
+
             if (first_row == False):
                 fake_header = [day + " " + key[4:6] + "-" + key[6:] + "-" + key[:4], ""]
                 first_row = True
@@ -290,7 +283,6 @@ class GenerateReport:
                 table.append(SEPARATING_LINE)
             for event in value:
                 if event.start_date[1] == "00:00" and event.end_date[1] == "00:00":
-                    #print("LINE 168: TIME: " + str(event.start_date[1]) + event.subject)
                     row = [event.net_id, "All Day"]    
                 else:
                     duration = self.calculate_mutliday_event_duration(str(event.start_date[1]), str(event.end_date[1]))

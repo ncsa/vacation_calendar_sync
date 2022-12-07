@@ -1,9 +1,8 @@
-exchangelib
+#exchangelib
 grab == 0.6.40
 tzlocal
 PyYAML
-git+https://github.com/andylytical/pyexch
-
+#git+https://github.com/andylytical/pyexch
 
 azure-core==1.23.1
 azure-identity==1.10.0

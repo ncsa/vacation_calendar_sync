@@ -312,8 +312,6 @@ if __name__ == '__main__':
 
     # Retrieves each group member's default calendar 
     calendar = my_calendar.get_group_members_calendars(my_calendar.user_client, start_date, end_date)
-    #print(calendar)
-    #print("--------------------------------------")
 
     if (args.report == True):
         print("Generating Report")
