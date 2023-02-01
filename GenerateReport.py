@@ -134,7 +134,8 @@ class GenerateReport:
         end_date : str
             The end date of the timeframe (YYYY-MM-DD)
         """
-        
+        print(calendar)
+        pass
         self.calendar = calendar
         self.group_members = group_members
         events = self.filter_dates(self.calendar)

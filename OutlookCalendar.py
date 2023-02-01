@@ -328,6 +328,3 @@ if __name__ == '__main__':
         shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
         # Updates the shared calendar 
         SharedCalendar(calendar, shared_calendar, my_calendar.shared_calendar_id, my_calendar.access_token, my_calendar.user_client, start_date[:4] + start_date[5:7] + start_date[8:])
-
-
-
