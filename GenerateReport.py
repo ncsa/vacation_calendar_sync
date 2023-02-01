@@ -65,7 +65,7 @@ class GenerateReport:
         """
         def printEvent(self):
 
-            print('event: ' + self.subject)
+            #print('event: ' + self.subject)
             print('status: ' + self.status)
             print('date: ' +  self.start_date[0])
             print('start on: ' + self.start_date[1])
@@ -84,7 +84,7 @@ class GenerateReport:
 
             self.net_id = user
             self.status = event['status']
-            self.subject = event['subject']
+            #self.subject = event['subject']
             self.start_date = self.date_parser(event['start']['dateTime'])
             self.end_date = self.date_parser(event['end']['dateTime'])
 
@@ -112,7 +112,7 @@ class GenerateReport:
             event = [
                 self.net_id,
                 self.status,
-                self.subject,
+                #self.subject,
                 self.start_date,
                 self.end_date
             ]
