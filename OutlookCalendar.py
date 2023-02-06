@@ -17,6 +17,8 @@ import yaml
 from GenerateReport import GenerateReport
 from SharedCalendar import SharedCalendar
 import argparse
+from datetime import datetime
+
 
 # done
 
@@ -65,37 +67,48 @@ class OutlookCalendar:
         """
 
         self.credential = self.get_credentials() 
-        try:
-            stream = open("/root/microsoft_graph_auth.yaml", 'r')
-        except:
-            raise UserWarning('microsoft_graph_auth.yaml does not exist')
-        else:
-            dictionary = yaml.safe_load(stream)
-            if 'client_id' in dictionary:
-                self.CLIENT_ID = dictionary['client_id']
-            else:
-                raise UserWarning('client_id is not provided in microsoft_graph_auth.yaml')
-            
-            if 'tenant_id' in dictionary:
-                self.TENANT_ID = dictionary['tenant_id']
-            else:
-                raise UserWarning('tenant_id is not provided in microsoft_graph_auth.yaml')
-            
-            if 'scope' in dictionary:
-                self.graphUserScopes = dictionary['scope']
-            else:
-                raise UserWarning('scope is not provided in microsoft_graph_auth.yaml')
-            
-            if 'group_members' in dictionary:
-                self.group_members = dictionary['group_members'] # this would be a dictionary
+        
+        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name']
 
-            if 'shared_calendar_name' in dictionary:
-                self.shared_calendar_name = dictionary['shared_calendar_name'] 
-                # TODO: What if the user doesn't provide shared_calendar_name. What if they jsut want a report and not the shared calendar feature 
-           
-            self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes, is_initial_use)
+        with open("/root/microsoft_graph_auth.yaml", 'r') as file:
+            dictionary = yaml.safe_load(file)
+            for attribute in required_attributes:
+                assert attribute in dictionary, f"{attribute} is not provided in microsoft_graph_auth.yaml"
+                setattr(self, attribute, dictionary[attribute])
+            self.user_client = self.initialize_graph_for_user_auth(self.client_id, self.tenant_id, self.scope, is_initial_use)
+
+        # self.credential = self.get_credentials() 
+        # try:
+        #     stream = open("/root/microsoft_graph_auth.yaml", 'r')
+        # except:
+        #     raise UserWarning('microsoft_graph_auth.yaml does not exist')
+        # else:
+        #     dictionary = yaml.safe_load(stream)
+        #     if 'client_id' in dictionary:
+        #         self.CLIENT_ID = dictionary['client_id']
+        #     else:
+        #         raise UserWarning('client_id is not provided in microsoft_graph_auth.yaml')
             
-            self.keywords = ['vacation', 'break', 'timeoff', 'PTO', 'sick']
+        #     if 'tenant_id' in dictionary:
+        #         self.TENANT_ID = dictionary['tenant_id']
+        #     else:
+        #         raise UserWarning('tenant_id is not provided in microsoft_graph_auth.yaml')
+            
+        #     if 'scope' in dictionary:
+        #         self.graphUserScopes = dictionary['scope']
+        #     else:
+        #         raise UserWarning('scope is not provided in microsoft_graph_auth.yaml')
+            
+        #     if 'group_members' in dictionary:
+        #         self.group_members = dictionary['group_members'] # this would be a dictionary
+
+        #     if 'shared_calendar_name' in dictionary:
+        #         self.shared_calendar_name = dictionary['shared_calendar_name'] 
+        #         # TODO: What if the user doesn't provide shared_calendar_name. What if they just want a report and not the shared calendar feature 
+           
+            # self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes, is_initial_use)
+            
+            #self.keywords = ['vacation', 'break', 'timeoff', 'PTO', 'sick']
         
 
     def get_credentials(self):
@@ -122,7 +135,7 @@ class OutlookCalendar:
 
     def initialize_graph_for_user_auth(self, client_id, tenant_id, scope, is_initial_use):
         """
-        Initializes the Microsoft Graph API abd return user_client object returned by GraphClient 
+        Initializes the Microsoft Graph API and return user_client object returned by GraphClient 
 
         Parameters
         ----------
@@ -180,11 +193,11 @@ class OutlookCalendar:
         url = console_output[start_index : end_index]
 
         try:
-            AuthenticateDevice(url, code, self.credential, self.TENANT_ID)
+            AuthenticateDevice(url, code, self.credential, self.tenant_id)
         except Exception as e:
             print(e)
             print("Error occured - Attempting to log in again")
-            AuthenticateDevice(url, code, self.credential, self.TENANT_ID)
+            AuthenticateDevice(url, code, self.credential, self.tenant_id)
 
     def get_group_members_calendars(self, user_client, start_date, end_date):
         """
@@ -300,11 +313,30 @@ Program is controlled using the following environment variables:
         #print(args.start_date, args.end_date, args.shared, args.report)
         return args
 
+        
+def sanitize_input(user_args):
+    date_format = '%Y-%m-%d'
+    dates = [user_args.start_date, user_args.end_date]
+    for date in dates:
+        try:
+            datetime.strptime(date, date_format)
+        except ValueError:
+            # Should I just raise an error instead?
+            assert False, "Incorrect data format, it should be YYYY-MM-DD"
+    
+    start_object = datetime.strptime(user_args.start_date,"%Y-%m-%d")
+    end_object = datetime.strptime(user_args.end_date,"%Y-%m-%d")
+    
+    assert (end_object - start_object).days >= 0, "start date should start date prior to the end date"    
+
 if __name__ == '__main__':
     # python3 OutlookCalendar.py [start date] [end date]
     # date format: YYYY-MM-DD
     args = process_args()
+    print(args)
 
+    sanitize_input(args)
+    
     start_date = args.start_date
     end_date = args.end_date
     

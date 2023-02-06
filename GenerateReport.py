@@ -248,14 +248,14 @@ class GenerateReport:
 
             if (i == 0):
                 new_item = copy.deepcopy(item)
-                new_item['end']['dateTime'] = end + "T23:59:00.0000000" 
+                new_item['end']['dateTime'] = end + "T23:59:59.0000000" 
             elif (i == delta.days):
                 new_item = copy.deepcopy(item)
                 new_item['start']['dateTime'] = start + "T00:00:00.0000000" 
             else:
                 new_item = copy.deepcopy(item)
                 new_item['start']['dateTime'] = start + "T00:00:00.0000000" 
-                new_item['end']['dateTime'] = end + "T23:59:00.0000000" 
+                new_item['end']['dateTime'] = end + "T23:59:59.0000000" 
             
             # print("=================================")
             # print("user: " + user)
