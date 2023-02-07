@@ -39,7 +39,7 @@ class GenerateReport:
     mutliday_event_hander
         Breaks multiday events into their own day and adding it to date_dict     
     """
-
+    
     class UserEvent:
         """
         A class that represent each event 

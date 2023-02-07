@@ -5,7 +5,6 @@ import json
 from azure.identity import DeviceCodeCredential
 from msgraph.core import GraphClient
 from base64 import decode
-import json 
 import os 
 import netrc
 from io import StringIO
@@ -70,6 +69,8 @@ class OutlookCalendar:
         
         required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name']
 
+        #path = os.getenv('AZURE_GRAPH_AUTH')
+        #print("path: " + str(path))
         with open("/root/microsoft_graph_auth.yaml", 'r') as file:
             dictionary = yaml.safe_load(file)
             for attribute in required_attributes:
@@ -121,8 +122,9 @@ class OutlookCalendar:
             A UserWarning is raised when either the login or password doesn't exist in the netrc file 
         """
 
-        netrc_fn = os.getenv( 'NETRC' )
-        nrc = netrc.netrc( netrc_fn )
+        netrc_fn = os.getenv('NETRC')
+        print("netrc_fn: "  + str(netrc_fn))
+        nrc = netrc.netrc(netrc_fn)
         nrc_parts = nrc.authenticators('OUTLOOK_LOGIN')
         if nrc_parts:
             username = nrc_parts[0]
