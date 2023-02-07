@@ -9,8 +9,7 @@ from tabulate import tabulate, SEPARATING_LINE
 from datetime import date, datetime
 import collections
 import copy
-
-# done
+from dataclasses import dataclass
 
 class GenerateReport:
     """
@@ -39,84 +38,12 @@ class GenerateReport:
     mutliday_event_hander
         Breaks multiday events into their own day and adding it to date_dict     
     """
-    
+    @dataclass
     class UserEvent:
-        """
-        A class that represent each event 
-
-        Attributes
-        ----------
         net_id : str
-            The net_id of the owner of the event
         status : str
-            The status set for the event. This can be "OUT", "OUT AM", "OUT PM". The default value will be "oof", which is away 
-        start_date : tuple
-            A tuple that includes the date (str) and time (str) of the start of the event
-        end_date : str
-            A tuple that includes the date (str) and time (str) of the end of the event
-
-
-        Methods 
-        -------
-        date_parser
-            Parses the date into a tuple of date (str) and time (str) and return the tuple
-        get_event
-            Return a list of Event attributes 
-        """
-        def printEvent(self):
-
-            #print('event: ' + self.subject)
-            print('status: ' + self.status)
-            print('date: ' +  self.start_date[0])
-            print('start on: ' + self.start_date[1])
-            print('end on: ' + self.end_date[1])
-            print("*************************")
-            
-        def __init__(self, event, user) -> None:
-            """
-            Parameters
-            ----------
-            event : dictionary 
-                A dictionary  with information pertaining to the event 
-            user : str
-                Name of the user with this event 
-            """
-
-            self.net_id = user
-            self.status = event['status']
-            self.start_date = self.date_parser(event['start']['dateTime'])
-            self.end_date = self.date_parser(event['end']['dateTime'])          
-
-        def date_parser(self, date):
-            """
-            Parses the date into a tuple of date (str) and time (str) and return the tuple
-
-            Parameters
-            ----------
-            date : str
-                A string consisting of the exact time of the event 
-            """
-
-            date_time = date.split('T')
-            date = date_time[0]
-            date = date[5:] + "-" + date[:4]
-            time = date_time[1]
-            return (date, time[:5])
-
-        def get_event(self):
-            """
-            Return a list of Event attributes 
-            """
-
-            event = [
-                self.net_id,
-                self.status,
-                #self.subject,
-                self.start_date,
-                self.end_date
-            ]
-            return event
-
+        #start_date : str
+        #end_date : str
     
     def __init__(self,calendar, group_members, mode, start_date, end_date) -> None:
         """
@@ -144,23 +71,6 @@ class GenerateReport:
         elif (mode == "d"):
             self.dump_calendar_to_json(events)
 
-
-    def date_parser(self, date):
-        """
-        Parses the date into a tuple of date (str) and time (str) and return the tuple
-
-        Parameters
-        ----------
-        date : str
-            A string consisting of the exact time of the event 
-        """
-
-        date_time = date.split('T')
-        date = date_time[0]
-        date = date[5:] + "-" + date[:4]
-        time = date_time[1]
-        return (date, time[:5])
-
     def filter_dates(self, calendar):
         """
         Parses the calendar and return a dictionary with key:value of dates and list of events on each day
@@ -174,47 +84,37 @@ class GenerateReport:
         date_dict = {}
         for member in calendar['value']:
             net_id = member['scheduleId']
-            name = self.group_members[net_id]
-            for item in member['scheduleItems']:
-                if item['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
-                    start_date = item['start']['dateTime']
+            name_of_group_member = self.group_members[net_id]
+            for event in member['scheduleItems']:
+                if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
+                    start_date = (event['start']['dateTime']).split('T')
+                    end_date = (event['end']['dateTime']).split('T')
                     # Change variable day into a YYYYMMDD format 
-                    day = start_date[:10]
-                    day = (day[:4] + day[5:7] + day[8:])
-
-                    
-        
-                    if (item['start']['dateTime'][0:10] != item['end']['dateTime'][:10]): # this could mean it's multiday or one single day event
-                        self.mutliday_event_hander(item['start']['dateTime'][0:10], item['end']['dateTime'][:10], date_dict, item, name)
+                
+                    print("simplified: " + ''.join(start_date[0].split('-')))
+                    start_day = ''.join(start_date[0].split('-'))
+                
+                    if (start_date[0] != end_date[0]): # this could mean it's multiday or one single day event
+                        self.mutliday_event_hander(start_date[0], end_date[0], date_dict, event, name_of_group_member)
                         continue
                     
-                    #print(item)
-                    is_AM = self.is_AM(item)
-                    is_PM = self.is_PM(item)
-
-                    if (is_AM == True and is_PM == True):
-                        item['status'] = "OUT"
-                    elif (is_AM == True):
-                        item['status'] = "OUT AM"
-                    elif (is_PM == True):
-                        item['status'] = "OUT PM"
-                    else:
-                        item['status'] = "Invalid event"
+                    event_status = self.retrieve_event_status(start_date[1], end_date[1])
+                    if event_status == None:
                         continue
+                  
+                    event_as_object = self.UserEvent(name_of_group_member, event_status)
 
-                    if day in date_dict:  
+                    if start_day in date_dict:  
                         # member_calendar_on_day is a dictionary with key as NetID and a list of Event objects as value. 
-                        event = self.UserEvent(item, name)
-                        date_dict[day].append(event)
+                        date_dict[start_day].append(event_as_object)
                     else:
-                        event = self.UserEvent(item, name)
-                        date_dict[day] = [event]
+                        date_dict[start_day] = [event_as_object]
 
         #print(self.dump_calendar_to_json(event_days_inorder))
         # self.print_table(event_days_inorder)
         return collections.OrderedDict(sorted(date_dict.items()))
 
-    def mutliday_event_hander(self, start, end, date_dict, item, user): 
+    def mutliday_event_hander(self, start, end, date_dict, event, user): 
         """
         Breaks multiday events into their own day and adding it to date_dict 
 
@@ -246,46 +146,28 @@ class GenerateReport:
         for i in range(delta.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
             day = (start_object + diff * i).strftime("%Y%m%d")
 
+            start_date = event['start']['dateTime'].split('T')
+            end_date = event['end']['dateTime'].split('T')
+
+            start_time = start_date[1]
+            end_time = end_date[1]
             if (i == 0):
-                new_item = copy.deepcopy(item)
-                new_item['end']['dateTime'] = end + "T23:59:59.0000000" 
+                end_time = "23:59:59.0000000"
             elif (i == delta.days):
-                new_item = copy.deepcopy(item)
-                new_item['start']['dateTime'] = start + "T00:00:00.0000000" 
+                start_time = "00:00:00.0000000" 
             else:
-                new_item = copy.deepcopy(item)
-                new_item['start']['dateTime'] = start + "T00:00:00.0000000" 
-                new_item['end']['dateTime'] = end + "T23:59:59.0000000" 
-            
-            # print("=================================")
-            # print("user: " + user)
-            # print(item)
-            # print("++++++++++++++++++++++++++++++++++")
-            # print(new_item)
+                start_time = "00:00:00.0000000" 
+                end_time = "23:59:59.0000000" 
 
-            is_AM = self.is_AM(new_item)
-            is_PM = self.is_PM(new_item)
-
-            if (is_AM == True and is_PM == True):
-                new_item['status'] = "OUT"
-            elif (is_AM == True):
-                new_item['status'] = "OUT AM"
-            elif (is_PM == True):
-                new_item['status'] = "OUT PM"
-            else:
-                new_item['status'] = "Invalid event"
+            event_status = self.retrieve_event_status(start_time, end_time)
+            if event_status == None:
                 continue
-
-  
-            # print("status: " + new_item['status'])
-            # print("=================================")
-                
+         
+            event_as_object = self.UserEvent(user, event_status)
             if day in date_dict:
-                event = self.UserEvent(new_item, user)
-                date_dict[day].insert(0, event)
+                date_dict[day].insert(0, event_as_object)
             else:
-                event = self.UserEvent(new_item, user)
-                date_dict[day] = [event]
+                date_dict[day] = [event_as_object]
         
     def dump_calendar_to_json(self, filtered_calendar):
         """
@@ -302,8 +184,8 @@ class GenerateReport:
         for key, value in filtered_calendar.items():
             events = []
             calendar_dict[key] = events
-            for item in value:
-                calendar_dict[key].append(item.get_event())
+            for event in value:
+                calendar_dict[key].append(event.net_id, event.status)
         
         calendar_as_json = json.dumps(calendar_dict)
         print(calendar_as_json)        
@@ -352,11 +234,11 @@ class GenerateReport:
         #self.json_result = json.dumps(table)
         print(tabulate(table, headers=fake_header, tablefmt="simple")) 
                 
-    def is_AM(self, event):
-        start_time = event['start']['dateTime'][11:16]
-        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:])
-        end_time = event['end']['dateTime'][11:16]
-        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:])
+    def is_AM(self, start_time, end_time):
+        #start_time = event['start']['dateTime'][11:16]
+        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+        #end_time = event['end']['dateTime'][11:16]
+        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
 
         # start: 9AM = 9 * 60 = 540
         # end: 11:50AM = 11 * 60 + 50 = 710
@@ -364,11 +246,9 @@ class GenerateReport:
             return True
         return False
 
-    def is_PM(self, event):
-        start_time = event['start']['dateTime'][11:16]
-        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:])
-        end_time = event['end']['dateTime'][11:16]
-        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:])
+    def is_PM(self, start_time, end_time):
+        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
 
         # start: 1PM = 13 * 60 = 780
         # end: 3:50PM = 15 * 60 + 50 = 950
@@ -376,3 +256,16 @@ class GenerateReport:
             return True
         return False
         
+    def retrieve_event_status(self, start_time, end_time):
+        is_AM = self.is_AM(start_time, end_time)
+        is_PM = self.is_PM(start_time,end_time)
+
+        event_status = None
+        if (is_AM == True and is_PM == True):
+            event_status = "OUT"
+        elif (is_AM == True):
+            event_status = "OUT AM"
+        elif (is_PM == True):
+            event_status = "OUT PM"
+
+        return event_status

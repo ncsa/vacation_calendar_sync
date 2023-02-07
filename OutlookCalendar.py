@@ -17,6 +17,7 @@ from GenerateReport import GenerateReport
 from SharedCalendar import SharedCalendar
 import argparse
 from datetime import datetime
+from dataclasses import dataclass
 
 
 # done
@@ -54,7 +55,7 @@ class OutlookCalendar:
     authentication_to_outlook
         Authenticates to Outlook as part of the the initialization process to the Microsoft Graph API
     """
-
+    
     def __init__(self, is_initial_use) -> None:    
         """
         Initializes the members variables by retrieving the netrc and yaml file 
