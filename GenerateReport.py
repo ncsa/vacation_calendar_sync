@@ -6,28 +6,27 @@ from datetime import datetime
 import collections
 from dataclasses import dataclass
 
+@dataclass
 class GenerateReport:
     """
     Generates a report of the members' calendars within a start-end timeframe  
     """
+    calendar_as_json : dict
+    credentials_of_members : dict
 
     @dataclass
     class UserEvent:
         net_id : str
         status : str
-        #start_date : str
-        #end_date : str
-    
-    def __init__(self,calendar, group_members, mode, start_date, end_date):
-    
-        self.calendar = calendar
-        self.group_members = group_members
-        events = self.filter_dates(self.calendar)
+
+    def generate(self, mode, start_date, end_date):
+        filtered_events = self.filter_dates(self.calendar_as_json)
         
         if (mode == "r"):
-            self.print_table(events, start_date, end_date)
+            self.print_table(filtered_events, start_date, end_date)
         elif (mode == "d"):
-            self.dump_calendar_to_json(events)
+            self.dump_calendar_to_json(filtered_events)
+        
 
     def filter_dates(self, calendar):
         """
@@ -38,9 +37,10 @@ class GenerateReport:
         # Within each list, the All-Day and Multi-Day events will be prioritized first. If an event is multiday, then each day in the time span will be made into an event object. (call mutliday_event_hander())
         date_dict = {}
         for member in calendar['value']:
-            name_of_group_member = self.group_members[member['scheduleId']]
+            name_of_group_member = self.credentials_of_members[member['scheduleId']]
             for event in member['scheduleItems']:
                 if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
+                    
                     start_date = (event['start']['dateTime']).split('T')
                     end_date = (event['end']['dateTime']).split('T')
                     # Change variable day into a YYYYMMDD format 
@@ -131,7 +131,11 @@ class GenerateReport:
         """
         Prints out the report 
         """
-        
+        # Problem: We want to keep the length of each column the same as we print out x different tables.
+        # The tabulate library doesn't allow to create a fixed length for a column.
+        # Solution: Have the title of each column be the a long fixed length, in such a way that the values of the columns 
+        # are either less than or equal to to the fixed length
+
         tabulate.PRESERVE_WHITESPACE = True
         # The max length of the name of the days of the week
         max_length = 9

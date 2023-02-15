@@ -124,7 +124,7 @@ class OutlookCalendar:
         """
 
         netrc_fn = os.getenv('NETRC')
-        print("netrc_fn: "  + str(netrc_fn))
+        #print("netrc_fn: "  + str(netrc_fn))
         nrc = netrc.netrc(netrc_fn)
         nrc_parts = nrc.authenticators('OUTLOOK_LOGIN')
         if nrc_parts:
@@ -351,15 +351,18 @@ if __name__ == '__main__':
     if (args.report == True):
         print("Generating Report")
         # Generates the report 
-        GenerateReport(calendar, my_calendar.group_members, "r", start_date, end_date)
+        GenerateReport(calendar, my_calendar.group_members).generate("r", start_date, end_date)
+
 
     if (args.dump_json == True):
         print("Dumping Table Data To Console")
-        GenerateReport(calendar, my_calendar.group_members, "d")
+        GenerateReport(calendar, my_calendar.group_members).generate("r")
 
     if (args.shared == True):
         print("Updating Shared Calendar")
         # Retrieves the shared calendar among the group members 
         shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
+        #print(shared_calendar)
+        #print(calendar)
         # Updates the shared calendar 
         SharedCalendar(calendar, shared_calendar, my_calendar.shared_calendar_id, my_calendar.access_token, my_calendar.user_client, start_date[:4] + start_date[5:7] + start_date[8:])
