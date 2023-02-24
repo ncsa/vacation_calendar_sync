@@ -5,6 +5,7 @@ from tabulate import tabulate, SEPARATING_LINE
 from datetime import datetime
 import collections
 from dataclasses import dataclass
+from SimpleEvent import SimpleEvent
 
 @dataclass
 class GenerateReport:
@@ -14,10 +15,10 @@ class GenerateReport:
     calendar_as_json : dict
     credentials_of_members : dict
 
-    @dataclass
-    class UserEvent:
-        net_id : str
-        status : str
+    # @dataclass
+    # class UserEvent:
+    #     net_id : str
+    #     status : str
 
     def generate(self, mode, start_date, end_date):
         filtered_events = self.filter_dates(self.calendar_as_json)
@@ -27,87 +28,107 @@ class GenerateReport:
         elif (mode == "d"):
             self.dump_calendar_to_json(filtered_events)
         
+    def filter_events(shared_calendar_events):
+        events_by_date_dict = {}
 
-    def filter_dates(self, calendar):
-        """
-        Parses the calendar and return a dictionary with key:value of dates and list of events on each day
-        """
+        for event in shared_calendar_events:
+            date = ''.join(event.date.split(' '))
+            if date in events_by_date_dict:
+                events_by_date_dict[date].append(event)
+            else:
+                events_by_date_dict[date] = event
+        
 
-        # date_dict is a dictionary with keys representing the dates, following the YYYYMMDD format, and each value contains a list of event objects.
-        # Within each list, the All-Day and Multi-Day events will be prioritized first. If an event is multiday, then each day in the time span will be made into an event object. (call mutliday_event_hander())
-        date_dict = {}
-        for member in calendar['value']:
-            name_of_group_member = self.credentials_of_members[member['scheduleId']]
-            for event in member['scheduleItems']:
-                if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
+        print(events_by_date_dict)
 
-                    start_date = (event['start']['dateTime']).split('T')
-                    end_date = (event['end']['dateTime']).split('T')
-                    # Change variable day into a YYYYMMDD format 
+
+
+    
+
+
+
+    # def filter_dates(self, calendar):
+
+
+    #     """
+    #     Parses the calendar and return a dictionary with key:value of dates and list of events on each day
+    #     """
+
+    #     # date_dict is a dictionary with keys representing the dates, following the YYYYMMDD format, and each value contains a list of event objects.
+    #     # Within each list, the All-Day and Multi-Day events will be prioritized first. If an event is multiday, then each day in the time span will be made into an event object. (call mutliday_event_hander())
+    #     date_dict = {}
+    #     for member in calendar['value']:
+    #         name_of_group_member = self.credentials_of_members[member['scheduleId']]
+    #         for event in member['scheduleItems']:
+    #             if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
+
+    #                 start_date = (event['start']['dateTime']).split('T')
+    #                 end_date = (event['end']['dateTime']).split('T')
+    #                 # Change variable day into a YYYYMMDD format 
                 
-                    #print("simplified: " + ''.join(start_date[0].split('-')))
-                    start_day = ''.join(start_date[0].split('-'))
+    #                 #print("simplified: " + ''.join(start_date[0].split('-')))
+    #                 start_day = ''.join(start_date[0].split('-'))
                 
-                    if (start_date[0] != end_date[0]): # this could mean it's multiday or one single day event
-                        self.mutliday_event_hander(start_date[0], end_date[0], date_dict, event, name_of_group_member)
-                        continue
+    #                 if (start_date[0] != end_date[0]): # this could mean it's multiday or one single day event
+    #                     self.mutliday_event_hander(start_date[0], end_date[0], date_dict, event, name_of_group_member)
+    #                     continue
                     
-                    event_status = self.retrieve_event_status(start_date[1], end_date[1])
-                    if event_status == None:
-                        continue
+    #                 event_status = self.retrieve_event_status(start_date[1], end_date[1])
+    #                 if event_status == None:
+    #                     continue
                   
-                    event_as_object = self.UserEvent(name_of_group_member, event_status)
+    #                 event_as_object = self.UserEvent(name_of_group_member, event_status)
 
-                    if start_day in date_dict:  
-                        # member_calendar_on_day is a dictionary with key as NetID and a list of Event objects as value. 
-                        date_dict[start_day].append(event_as_object)
-                    else:
-                        date_dict[start_day] = [event_as_object]
+    #                 if start_day in date_dict:  
+    #                     # member_calendar_on_day is a dictionary with key as NetID and a list of Event objects as value. 
+    #                     date_dict[start_day].append(event_as_object)
+    #                 else:
+    #                     date_dict[start_day] = [event_as_object]
         
-        return collections.OrderedDict(sorted(date_dict.items()))
+    #     return collections.OrderedDict(sorted(date_dict.items()))
 
-    def mutliday_event_hander(self, start_day, end_day, date_dict, event, user): 
-        """
-        Breaks multiday events into their own day and adding it to date_dict 
-        """
+    # def mutliday_event_hander(self, start_day, end_day, date_dict, event, user): 
+    #     """
+    #     Breaks multiday events into their own day and adding it to date_dict 
+    #     """
 
-        # if an event goes in here, then it's all day because the start date and end date differ by one day so it has to be at least be 1 All Day
-        # Automatically All Day 
+    #     # if an event goes in here, then it's all day because the start date and end date differ by one day so it has to be at least be 1 All Day
+    #     # Automatically All Day 
 
-        start_object = datetime.strptime(start_day,"%Y-%m-%d")
-        end_object = datetime.strptime(end_day,"%Y-%m-%d")
+    #     start_object = datetime.strptime(start_day,"%Y-%m-%d")
+    #     end_object = datetime.strptime(end_day,"%Y-%m-%d")
 
-        delta = end_object - start_object
+    #     delta = end_object - start_object
   
-        diff = (end_object  - start_object ) / delta.days
+    #     diff = (end_object  - start_object ) / delta.days
         
-        for i in range(delta.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
-            day = (start_object + diff * i).strftime("%Y%m%d")
-            #print("day: " + day)
-            #print("type: " + str(type(day)))
-            start_date = event['start']['dateTime'].split('T')
-            end_date = event['end']['dateTime'].split('T')
+    #     for i in range(delta.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
+    #         day = (start_object + diff * i).strftime("%Y%m%d")
+    #         #print("day: " + day)
+    #         #print("type: " + str(type(day)))
+    #         start_date = event['start']['dateTime'].split('T')
+    #         end_date = event['end']['dateTime'].split('T')
 
-            start_time = start_date[1]
-            end_time = end_date[1]
+    #         start_time = start_date[1]
+    #         end_time = end_date[1]
 
-            if (i == 0):
-                end_time = "23:59:59.0000000"
-            elif (i == delta.days):
-                start_time = "00:00:00.0000000" 
-            else:
-                start_time = "00:00:00.0000000" 
-                end_time = "23:59:59.0000000" 
+    #         if (i == 0):
+    #             end_time = "23:59:59.0000000"
+    #         elif (i == delta.days):
+    #             start_time = "00:00:00.0000000" 
+    #         else:
+    #             start_time = "00:00:00.0000000" 
+    #             end_time = "23:59:59.0000000" 
 
-            event_status = self.retrieve_event_status(start_time, end_time)
-            if event_status == None:
-                continue
+    #         event_status = self.retrieve_event_status(start_time, end_time)
+    #         if event_status == None:
+    #             continue
          
-            event_as_object = self.UserEvent(user, event_status)
-            if day in date_dict:
-                date_dict[day].insert(0, event_as_object)
-            else:
-                date_dict[day] = [event_as_object]
+    #         event_as_object = self.UserEvent(user, event_status)
+    #         if day in date_dict:
+    #             date_dict[day].insert(0, event_as_object)
+    #         else:
+    #             date_dict[day] = [event_as_object]
         
     def dump_calendar_to_json(self, filtered_calendar):
         """
@@ -157,36 +178,38 @@ class GenerateReport:
             print(tabulate(list_of_events, headers=[column_one_title, column_two_title], tablefmt="simple")) 
             print("")
         
-    def is_AM(self, start_time, end_time):
-        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
-        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
+    # def is_AM(self, start_time, end_time):
+    #     start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+    #     end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
 
-        # start: 9AM = 9 * 60 = 540
-        # end: 11:50AM = 11 * 60 + 50 = 710
-        if (start_time_in_minutes <= 540 and end_time_in_minutes >= 710):
-            return True
-        return False
+    #     # start: 9AM = 9 * 60 = 540
+    #     # end: 11:50AM = 11 * 60 + 50 = 710
+    #     if (start_time_in_minutes <= 540 and end_time_in_minutes >= 710):
+    #         return True
+    #     return False
 
-    def is_PM(self, start_time, end_time):
-        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
-        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
+    # def is_PM(self, start_time, end_time):
+    #     start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+    #     end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
 
-        # start: 1PM = 13 * 60 = 780
-        # end: 3:50PM = 15 * 60 + 50 = 950
-        if (start_time_in_minutes <= 780 and end_time_in_minutes >= 950):
-            return True
-        return False
+    #     # start: 1PM = 13 * 60 = 780
+    #     # end: 3:50PM = 15 * 60 + 50 = 950
+    #     if (start_time_in_minutes <= 780 and end_time_in_minutes >= 950):
+    #         return True
+    #     return False
         
-    def retrieve_event_status(self, start_time, end_time):
-        is_AM = self.is_AM(start_time, end_time)
-        is_PM = self.is_PM(start_time,end_time)
+    # def retrieve_event_status(self, start_time, end_time):
+    #     is_AM = self.is_AM(start_time, end_time)
+    #     is_PM = self.is_PM(start_time,end_time)
 
-        event_status = None
-        if (is_AM == True and is_PM == True):
-            event_status = "OUT"
-        elif (is_AM == True):
-            event_status = "OUT AM"
-        elif (is_PM == True):
-            event_status = "OUT PM"
+    #     event_status = None
+    #     if (is_AM == True and is_PM == True):
+    #         event_status = "OUT"
+    #     elif (is_AM == True):
+    #         event_status = "OUT AM"
+    #     elif (is_PM == True):
+    #         event_status = "OUT PM"
 
-        return event_status
+    #     return event_status
+
+

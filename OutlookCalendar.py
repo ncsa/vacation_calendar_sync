@@ -1,10 +1,8 @@
 #!/usr/bin/python
-from tracemalloc import start
 import sys
 import json
 from azure.identity import DeviceCodeCredential
 from msgraph.core import GraphClient
-from base64 import decode
 import os 
 import netrc
 from io import StringIO
@@ -19,6 +17,7 @@ import argparse
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
+from SimpleEvent import SimpleEvent
 
 # done
 # If I break it down day by day, then i will have to do the dictionary structure. 
@@ -34,13 +33,14 @@ class OutlookCalendar:
         OUT_AM = 1
         OUT_PM = 2
 
-    @dataclass
-    class SimpleEvent:
-        net_id : str 
-        subject : str # Our own formatted subject 
-        status : Enum 
-        date : str 
-        #count : int # The duration of the event in terms of days
+    # @dataclass
+    # class SimpleEvent:
+    #     net_id : str 
+    #     subject : str # Our own formatted subject 
+    #     status : Enum 
+    #     date : str 
+    #     #count : int # The duration of the event in terms of days
+
 
     """
     A class used to start the program
@@ -291,17 +291,17 @@ class OutlookCalendar:
                     end_date = end_date_time[0]
                 
                     if (start_date != end_date): # this could mean it's multiday or one single day event
-                        self.mutliday_event_hander(start_date, end_date, start_date_time[1], end_date_time[1], list_of_events, net_id)
+                        self.process_multiday_event(start_date, end_date, start_date_time[1], end_date_time[1], list_of_events, net_id)
                         continue       
         
-                    event_status = self.set_event_status(start_date_time[1], end_date_time[1])
+                    event_status = self.get_event_status(start_date_time[1], end_date_time[1])
 
                     if (event_status == None):
                         continue
 
-                    event_subject = self.set_event_subject(net_id, event_status)
+                    event_subject = self.get_event_subject(net_id, event_status)
                         
-                    simple_event = self.SimpleEvent(net_id, event_subject, event_status, start_date)
+                    simple_event = SimpleEvent(net_id, event_subject, event_status, start_date)
                     list_of_events.append(simple_event)
       
         # print("Individual calendar: ")
@@ -320,18 +320,18 @@ class OutlookCalendar:
                 subject = event['subject']
                 event_identifier = subject.split(' ', 1) # net_id status
                 if (len(event_identifier) == 2):
-                    status = self.get_status(event_identifier[1])
+                    status = self.is_valid_status(event_identifier[1])
 
                     if (status != -1):
                         net_id = event_identifier[0]
-                        simple_event = self.SimpleEvent(net_id, subject, status, start_date)
+                        simple_event = SimpleEvent(net_id, subject, status, start_date)
                         list_of_events.append(simple_event)
         
         # print("shared event: ")
         # print(list_of_events)
         return list_of_events
 
-    def mutliday_event_hander(self, start_date, end_date, start_time, end_time, list_of_events, net_id): 
+    def process_multiday_event(self, start_date, end_date, start_time, end_time, list_of_events, net_id): 
             """
             Breaks multiday events into their own day and adding it to date_dict 
             """
@@ -359,17 +359,17 @@ class OutlookCalendar:
                     temp_start_time = "00:00:00.0000000" 
                     temp_end_time = "23:59:59.0000000" 
 
-                event_status = self.set_event_status(temp_start_time, temp_end_time)
+                event_status = self.get_event_status(temp_start_time, temp_end_time)
 
                 if (event_status == None):
                     continue
                 
-                event_subject = self.set_event_subject(net_id, event_status)
+                event_subject = self.get_event_subject(net_id, event_status)
 
-                simple_event = self.SimpleEvent(net_id, event_subject, event_status, date)
+                simple_event = SimpleEvent(net_id, event_subject, event_status, date)
                 list_of_events.append(simple_event)
 
-    def set_event_status(self, start_time, end_time):
+    def get_event_status(self, start_time, end_time):
         is_AM = self.is_AM(start_time, end_time)
         is_PM = self.is_PM(start_time,end_time)
 
@@ -382,7 +382,7 @@ class OutlookCalendar:
 
         return None
 
-    def set_event_subject(self, net_id, event_status):
+    def get_event_subject(self, net_id, event_status):
         # if event_status == -1:
         #     continue
         if event_status == self.Status.OUT:
@@ -394,7 +394,7 @@ class OutlookCalendar:
         
         return None
 
-    def get_status(self, status_as_string):
+    def is_valid_status(self, status_as_string):
         if status_as_string == "OUT":
             return self.Status.OUT
         elif status_as_string == "OUT AM":
