@@ -75,6 +75,8 @@ class SharedCalendar:
 
 
     def parse_members_calendars(self, members_calendars):
+        # returns a list of 
+        pass
         """
         Parses the members' calendars and returns a sorted dictionary with key:pair value of date to list of events 
 
@@ -135,7 +137,7 @@ class SharedCalendar:
         date_dict = {}
         for event in shared_calendar['value']:
             # TODO: Change to 'away'
-            if event['showAs'] == 'busy': 
+            if event['showAs'] == 'oof': 
                 start_date = event['start']['dateTime']
                 # Change variable day into a YYYYMMDD format 
                 day = start_date[:10]

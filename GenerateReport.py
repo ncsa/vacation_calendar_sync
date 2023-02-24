@@ -40,7 +40,7 @@ class GenerateReport:
             name_of_group_member = self.credentials_of_members[member['scheduleId']]
             for event in member['scheduleItems']:
                 if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
-                    
+
                     start_date = (event['start']['dateTime']).split('T')
                     end_date = (event['end']['dateTime']).split('T')
                     # Change variable day into a YYYYMMDD format 
@@ -63,9 +63,7 @@ class GenerateReport:
                         date_dict[start_day].append(event_as_object)
                     else:
                         date_dict[start_day] = [event_as_object]
-
-        #print(self.dump_calendar_to_json(event_days_inorder))
-        # self.print_table(event_days_inorder)
+        
         return collections.OrderedDict(sorted(date_dict.items()))
 
     def mutliday_event_hander(self, start_day, end_day, date_dict, event, user): 
@@ -85,7 +83,8 @@ class GenerateReport:
         
         for i in range(delta.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
             day = (start_object + diff * i).strftime("%Y%m%d")
-
+            #print("day: " + day)
+            #print("type: " + str(type(day)))
             start_date = event['start']['dateTime'].split('T')
             end_date = event['end']['dateTime'].split('T')
 

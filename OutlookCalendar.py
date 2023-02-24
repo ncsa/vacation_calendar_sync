@@ -18,11 +18,30 @@ from SharedCalendar import SharedCalendar
 import argparse
 from datetime import datetime
 from dataclasses import dataclass
-
+from enum import Enum
 
 # done
+# If I break it down day by day, then i will have to do the dictionary structure. 
+# Actually, not necessarily. If the multiday events can be represtend by its own individual event (visually), then we can still use a list. 
+# GenerateReport -> just print out the dictionary 
+# 
 
 class OutlookCalendar:
+    
+
+    class Status(Enum):
+        OUT = 0
+        OUT_AM = 1
+        OUT_PM = 2
+
+    @dataclass
+    class SimpleEvent:
+        net_id : str 
+        subject : str # Our own formatted subject 
+        status : Enum 
+        date : str 
+        #count : int # The duration of the event in terms of days
+
     """
     A class used to start the program
 
@@ -77,41 +96,7 @@ class OutlookCalendar:
             for attribute in required_attributes:
                 assert attribute in dictionary, f"{attribute} is not provided in microsoft_graph_auth.yaml"
                 setattr(self, attribute, dictionary[attribute])
-            self.user_client = self.initialize_graph_for_user_auth(self.client_id, self.tenant_id, self.scope, is_initial_use)
-
-        # self.credential = self.get_credentials() 
-        # try:
-        #     stream = open("/root/microsoft_graph_auth.yaml", 'r')
-        # except:
-        #     raise UserWarning('microsoft_graph_auth.yaml does not exist')
-        # else:
-        #     dictionary = yaml.safe_load(stream)
-        #     if 'client_id' in dictionary:
-        #         self.CLIENT_ID = dictionary['client_id']
-        #     else:
-        #         raise UserWarning('client_id is not provided in microsoft_graph_auth.yaml')
-            
-        #     if 'tenant_id' in dictionary:
-        #         self.TENANT_ID = dictionary['tenant_id']
-        #     else:
-        #         raise UserWarning('tenant_id is not provided in microsoft_graph_auth.yaml')
-            
-        #     if 'scope' in dictionary:
-        #         self.graphUserScopes = dictionary['scope']
-        #     else:
-        #         raise UserWarning('scope is not provided in microsoft_graph_auth.yaml')
-            
-        #     if 'group_members' in dictionary:
-        #         self.group_members = dictionary['group_members'] # this would be a dictionary
-
-        #     if 'shared_calendar_name' in dictionary:
-        #         self.shared_calendar_name = dictionary['shared_calendar_name'] 
-        #         # TODO: What if the user doesn't provide shared_calendar_name. What if they just want a report and not the shared calendar feature 
-           
-            # self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes, is_initial_use)
-            
-            #self.keywords = ['vacation', 'break', 'timeoff', 'PTO', 'sick']
-        
+            self.user_client = self.initialize_graph_for_user_auth(self.client_id, self.tenant_id, self.scope, is_initial_use)        
 
     def get_credentials(self):
         """
@@ -288,6 +273,159 @@ class OutlookCalendar:
         
         #print(calendar)
         return calendar
+
+
+    def process_individual_calendars(self, calendar):
+        list_of_events = []
+        for member in calendar['value']:
+            net_id = member['scheduleId']
+            net_id = net_id.split('@')[0]
+            #name_of_group_member = self.group_members[member['scheduleId']]
+            for event in member['scheduleItems']:
+                if event['status'] == 'oof': # For some reason, 'oof' is Outlook's away status. 
+                    
+                    start_date_time = event['start']['dateTime'].split('T')
+                    end_date_time = (event['end']['dateTime']).split('T')
+
+                    start_date = start_date_time[0]
+                    end_date = end_date_time[0]
+                
+                    if (start_date != end_date): # this could mean it's multiday or one single day event
+                        self.mutliday_event_hander(start_date, end_date, start_date_time[1], end_date_time[1], list_of_events, net_id)
+                        continue       
+        
+                    event_status = self.set_event_status(start_date_time[1], end_date_time[1])
+
+                    if (event_status == None):
+                        continue
+
+                    event_subject = self.set_event_subject(net_id, event_status)
+                        
+                    simple_event = self.SimpleEvent(net_id, event_subject, event_status, start_date)
+                    list_of_events.append(simple_event)
+      
+        # print("Individual calendar: ")
+        # print(list_of_events)
+        return list_of_events
+    
+    def process_shared_calendar(self, shared_calendar):
+
+        list_of_events = []
+    
+        for event in shared_calendar['value']:
+            if event['showAs'] == 'oof': 
+                start_date_time = event['start']['dateTime'].split('T')
+                start_date = start_date_time[0]
+    
+                subject = event['subject']
+                event_identifier = subject.split(' ', 1) # net_id status
+                if (len(event_identifier) == 2):
+                    status = self.get_status(event_identifier[1])
+
+                    if (status != -1):
+                        net_id = event_identifier[0]
+                        simple_event = self.SimpleEvent(net_id, subject, status, start_date)
+                        list_of_events.append(simple_event)
+        
+        # print("shared event: ")
+        # print(list_of_events)
+        return list_of_events
+
+    def mutliday_event_hander(self, start_date, end_date, start_time, end_time, list_of_events, net_id): 
+            """
+            Breaks multiday events into their own day and adding it to date_dict 
+            """
+            # if an event goes in here, then it's all day because the start date and end date differ by one day so it has to be at least be 1 All Day
+            # Automatically All Day 
+
+            start_object = datetime.strptime(start_date,"%Y-%m-%d")
+            end_object = datetime.strptime(end_date,"%Y-%m-%d")
+
+            delta = end_object - start_object
+    
+            diff = (end_object  - start_object ) / delta.days
+            
+            for i in range(delta.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
+                date = (start_object + diff * i).strftime("%Y-%m-%d")
+
+                temp_start_time = start_time
+                temp_end_time = end_time
+
+                if (i == 0):
+                    temp_end_time = "23:59:59.0000000"
+                elif (i == delta.days):
+                    temp_start_time = "00:00:00.0000000" 
+                else:
+                    temp_start_time = "00:00:00.0000000" 
+                    temp_end_time = "23:59:59.0000000" 
+
+                event_status = self.set_event_status(temp_start_time, temp_end_time)
+
+                if (event_status == None):
+                    continue
+                
+                event_subject = self.set_event_subject(net_id, event_status)
+
+                simple_event = self.SimpleEvent(net_id, event_subject, event_status, date)
+                list_of_events.append(simple_event)
+
+    def set_event_status(self, start_time, end_time):
+        is_AM = self.is_AM(start_time, end_time)
+        is_PM = self.is_PM(start_time,end_time)
+
+        if (is_AM == True and is_PM == True):
+            return self.Status.OUT
+        elif (is_AM == True):
+            return self.Status.OUT_AM
+        elif (is_PM == True):
+            return self.Status.OUT_PM
+
+        return None
+
+    def set_event_subject(self, net_id, event_status):
+        # if event_status == -1:
+        #     continue
+        if event_status == self.Status.OUT:
+            return net_id + " OUT"
+        elif event_status == self.Status.OUT_AM:
+            return net_id + " OUT AM"
+        elif event_status == self.Status.OUT_PM:
+            return net_id + " OUT PM"
+        
+        return None
+
+    def get_status(self, status_as_string):
+        if status_as_string == "OUT":
+            return self.Status.OUT
+        elif status_as_string == "OUT AM":
+            return self.Status.OUT_AM
+        elif status_as_string == "OUT PM":
+            return self.Status.OUT_PM
+
+        return -1
+
+
+    def is_AM(self, start_time, end_time):
+        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
+
+        # start: 9AM = 9 * 60 = 540
+        # end: 11:50AM = 11 * 60 + 50 = 710
+        if (start_time_in_minutes <= 540 and end_time_in_minutes >= 710):
+            return True
+        return False
+
+    def is_PM(self, start_time, end_time):
+        start_time_in_minutes = int(start_time[:2]) * 60 + int(start_time[3:5])
+        end_time_in_minutes = int(end_time[:2]) * 60 + int(end_time[3:5])
+
+        # start: 1PM = 13 * 60 = 780
+        # end: 3:50PM = 15 * 60 + 50 = 950
+        if (start_time_in_minutes <= 780 and end_time_in_minutes >= 950):
+            return True
+        return False
+
+
     
 def process_args():
         parser = argparse.ArgumentParser(
@@ -336,7 +474,7 @@ if __name__ == '__main__':
     # python3 OutlookCalendar.py [start date] [end date]
     # date format: YYYY-MM-DD
     args = process_args()
-    print(args)
+    #print(args)
 
     sanitize_input(args)
     
@@ -346,23 +484,48 @@ if __name__ == '__main__':
     my_calendar = OutlookCalendar(args.is_initial_use)
 
     # Retrieves each group member's default calendar 
+    
     calendar = my_calendar.get_group_members_calendars(my_calendar.user_client, start_date, end_date)
+    shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
+    #print(shared_calendar)
+    my_calendar.process_individual_calendars(calendar)
+    my_calendar.process_shared_calendar(shared_calendar)
+    #print(calendar)
 
-    if (args.report == True):
-        print("Generating Report")
-        # Generates the report 
-        GenerateReport(calendar, my_calendar.group_members).generate("r", start_date, end_date)
+    # counter = 0
+
+    # while (counter <= 5):
+    #     print("counter: " + str(counter))
+    #     calendar = my_calendar.get_group_members_calendars(my_calendar.user_client, start_date, end_date)
+    #     GenerateReport(calendar, my_calendar.group_members).generate("r", start_date, end_date)
+    #     time.sleep(10)
+    #     counter = counter + 1
+    #     print("-------------------------------------------------------")
+        
 
 
-    if (args.dump_json == True):
-        print("Dumping Table Data To Console")
-        GenerateReport(calendar, my_calendar.group_members).generate("r")
 
-    if (args.shared == True):
-        print("Updating Shared Calendar")
-        # Retrieves the shared calendar among the group members 
-        shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
-        #print(shared_calendar)
-        #print(calendar)
-        # Updates the shared calendar 
-        SharedCalendar(calendar, shared_calendar, my_calendar.shared_calendar_id, my_calendar.access_token, my_calendar.user_client, start_date[:4] + start_date[5:7] + start_date[8:])
+    # if (args.report == True):
+    #     print("Generating Report")
+    #     # Generates the report 
+    #     GenerateReport(calendar, my_calendar.group_members).generate("r", start_date, end_date)
+
+
+    # if (args.dump_json == True):
+    #     print("Dumping Table Data To Console")
+    #     GenerateReport(calendar, my_calendar.group_members).generate("r")
+
+    # if (args.shared == True):
+    #     print("Updating Shared Calendar")
+    #     # Retrieves the shared calendar among the group members 
+    #     shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
+    #     #print(shared_calendar)
+    #     #print(calendar)
+    #     # Updates the shared calendar 
+    #     SharedCalendar(calendar, shared_calendar, my_calendar.shared_calendar_id, my_calendar.access_token, my_calendar.user_client, start_date[:4] + start_date[5:7] + start_date[8:])
+
+
+
+# pttran - OUT
+# pttran - OUT AM
+# pttran - OUT PM
