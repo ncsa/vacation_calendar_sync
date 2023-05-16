@@ -9,7 +9,7 @@ RUN python -m pip install -r /outlook_calendar_report_generator/requirements.txt
 
 RUN ln -s /home/.netrc /root/.netrc
 RUN ln -s /home/microsoft_graph_auth.yaml /root/microsoft_graph_auth.yaml
-
+ENV AZURE_GRAPH_AUTH="/root/microsoft_graph_auth.yaml"
 #RUN mkdir /duo_auth/app
 
 CMD ["bash"]

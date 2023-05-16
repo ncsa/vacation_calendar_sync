@@ -1,278 +1,168 @@
 #!/usr/bin/python
-from tracemalloc import start
-import sys
 import json
 from azure.identity import DeviceCodeCredential
 from msgraph.core import GraphClient
-from base64 import decode
-import json 
-import os 
-import netrc
-from io import StringIO
-import sys
-import threading
-import time
-from AuthenticateDevice import AuthenticateDevice
 import yaml
 from GenerateReport import GenerateReport
-from SharedCalendar import SharedCalendar
+import SharedCalendar 
 import argparse
-
-# done
+from datetime import datetime
+from dataclasses import dataclass
+from SimpleEvent import SimpleEvent
+import os 
+from datetime import timedelta 
+import time
 
 class OutlookCalendar:
-    """
-    A class used to start the program
 
-    Attribute
-    ---------
-    credentials : tuple 
-        Includes username and password
-    client_id : str
-        The Application (client) ID that is shown on the Microsfot Azure Project Page
-    tenant_id : str
-        The Directory (tenant) ID that is shown on the Microsoft Azure Project Page 
-    graphUserScopes : str
-        The scope that list the permissions for the project
-    group_members : dictionary
-        A key:pair of name and netid 
-    shared_calendar_name
-        Name of the shared calendar
-    get_group_members_calendars
-        Retrieves and returns a json object that has the groups member's calendar events
-    get_shared_calendar
-        Retrieves and returns a json object of the shared calendar events that are within/overlap with between the start_date and end_date
-    
-
-    Methods
-    -------
-    get_credentials
-        Retrieves the credential of the user through the netrc file which should include login and password and return a tuple of username and password
-    initialize_graph_for_user_auth
-        Initializes the Microsoft Graph API abd return user_client object returned by GraphClient 
-    authentication_to_outlook
-        Authenticates to Outlook as part of the the initialization process to the Microsoft Graph API
-    """
-
-    def __init__(self, is_initial_use) -> None:    
+    def __init__(self):    
         """
-        Initializes the members variables by retrieving the netrc and yaml file 
-
-        Parameters
-        ----------
-        is_initial_use
-            Indicates whether this is first time running script
+        Initializes the members variables by retrieving the netrc and yaml file
         """
+        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name']
 
-        self.credential = self.get_credentials() 
-        try:
-            stream = open("/root/microsoft_graph_auth.yaml", 'r')
-        except:
-            raise UserWarning('microsoft_graph_auth.yaml does not exist')
-        else:
-            dictionary = yaml.safe_load(stream)
-            if 'client_id' in dictionary:
-                self.CLIENT_ID = dictionary['client_id']
-            else:
-                raise UserWarning('client_id is not provided in microsoft_graph_auth.yaml')
-            
-            if 'tenant_id' in dictionary:
-                self.TENANT_ID = dictionary['tenant_id']
-            else:
-                raise UserWarning('tenant_id is not provided in microsoft_graph_auth.yaml')
-            
-            if 'scope' in dictionary:
-                self.graphUserScopes = dictionary['scope']
-            else:
-                raise UserWarning('scope is not provided in microsoft_graph_auth.yaml')
-            
-            if 'group_members' in dictionary:
-                self.group_members = dictionary['group_members'] # this would be a dictionary
+        # Created ENV variable using docker's ENV command in Dockerfile
+        path = os.getenv('AZURE_GRAPH_AUTH')
+        with open(path, 'r') as file:
+            dictionary = yaml.safe_load(file)
+            for attribute in required_attributes:
+                assert attribute in dictionary, f"{attribute} is not provided in microsoft_graph_auth.yaml"
+                setattr(self, attribute, dictionary[attribute])
+                
+            self.device_code_credential = DeviceCodeCredential(client_id = self.client_id, tenant_id = self.tenant_id)
+            self.user_client = GraphClient(credential=self.device_code_credential, scopes=self.scope.split(' '))  
 
-            if 'shared_calendar_name' in dictionary:
-                self.shared_calendar_name = dictionary['shared_calendar_name'] 
-                # TODO: What if the user doesn't provide shared_calendar_name. What if they jsut want a report and not the shared calendar feature 
-           
-            self.user_client = self.initialize_graph_for_user_auth(self.CLIENT_ID, self.TENANT_ID, self.graphUserScopes, is_initial_use)
-            
-            self.keywords = ['vacation', 'break', 'timeoff', 'PTO', 'sick']
-        
-
-    def get_credentials(self):
+    def get_individual_calendars(self, start_date, end_date):
         """
-        Retrieves the credential of the user through the netrc file which should include login and password and return a tuple of username and password
+        Retrieves and returns a json object of individuals'calendar events
+          that are within/overlap between the start_date and end_date
 
-        Raised
-        ------
-        UserWarning 
-            A UserWarning is raised when either the login or password doesn't exist in the netrc file 
-        """
-
-        netrc_fn = os.getenv( 'NETRC' )
-        nrc = netrc.netrc( netrc_fn )
-        nrc_parts = nrc.authenticators('OUTLOOK_LOGIN')
-        if nrc_parts:
-            username = nrc_parts[0]
-            password = nrc_parts[2]
-        if not username:
-            raise UserWarning('Empty username not allowed' )
-        if not password:
-            raise UserWarning('Empty passwd not allowed')
-        return (username, password)
-
-    def initialize_graph_for_user_auth(self, client_id, tenant_id, scope, is_initial_use):
-        """
-        Initializes the Microsoft Graph API abd return user_client object returned by GraphClient 
-
-        Parameters
-        ----------
-        client_id  : str
-            The Application (client) ID that is shown on the Microsfot Azure Project Page
-        tenant_id : str
-            The Directory (tenant) ID that is shown on the Microsoft Azure Project Page 
-        scope : str
-            The scope that list the permissions for the project
-        is_initial_use
-            Indicates whether this is first time running script
-
-        """
-
-        device_code_credential = DeviceCodeCredential(client_id, tenant_id = tenant_id)
-        user_client = GraphClient(credential=device_code_credential, scopes=scope.split(' '))
-
-
-        if (is_initial_use == False): 
-            # Creates a background thread to authenticate with Outlook including verifying access code, logging into Outlook, and accepting DUO Push notification
-            tmp = sys.stdout
-            redirected_output = StringIO()
-            sys.stdout = redirected_output
-        
-            background_thread = threading.Thread(target=self.authentication_to_outlook, args=(redirected_output, tmp))
-            background_thread.start()
-
-        self.access_token = device_code_credential.get_token(scope)
-        
-        return user_client
-
-    def authentication_to_outlook(self, redirected_output, tmp):
-        """
-        Authenticates to Outlook as part of the the initialization process to the Microsoft Graph API
-
-        Parameters
-        ----------
-        redirected_output : _io.StringIO'
-            The output from console that is redirected to redirected_output
-        tmp  : _io.TextIOWrapper
-            The pointer to the standard output 
-        """
-
-        #sleep 2 second to wait for the prompt with the link and access code to load into std.out
-        time.sleep(2)
-        sys.stdout = tmp
-        
-        console_output = redirected_output.getvalue()
-        start_index = console_output.find("code")
-        end_index = console_output.find(" ", start_index + 5)
-        code = console_output[start_index + 5: end_index]
-
-        start_index = console_output.find("http")
-        end_index = console_output.find(" ", start_index)
-        url = console_output[start_index : end_index]
-
-        try:
-            AuthenticateDevice(url, code, self.credential, self.TENANT_ID)
-        except Exception as e:
-            print(e)
-            print("Error occured - Attempting to log in again")
-            AuthenticateDevice(url, code, self.credential, self.TENANT_ID)
-
-    def get_group_members_calendars(self, user_client, start_date, end_date):
-        """
-        Retrieves and returns a json object that has the groups member's calendar events
-
-        Parameters 
-        ----------
-        user_client : msgraph.core._graph_client.GraphClient (Graph Client Object)
-        start_date : str
-            The start date of the timeframe
-        end_date : str
-            The end date of the timeframe
+            Parameters:
+                start_date (string): the start date of the calendar (YYYY-MM-DD)
+                end_date (string): the end date of the calendar (YYYY-MM-DD)
         """
 
         header = {
-            'Authorization': str(self.access_token),
+            'Authorization': str(self.device_code_credential.get_token(self.scope)), # Retrieves the access token
             'Content-Type': "application/json",
             'Prefer': "outlook.timezone=\"Central Standard Time\""
         }
-
-        schedules = []
-        for key in self.group_members:
-            schedules.append(key)
         
         data = {        
-            "schedules": schedules,
+            "schedules": list(self.group_members.keys()), # List of the net_ids of each individual listed in the yaml file
             "startTime": {
-                "dateTime": start_date + "T00:00:00",
+                "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
                 "timeZone": "Central Standard Time"
             },
             "endTime": {
-                "dateTime": end_date + "T00:00:00",
+                "dateTime": datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S"),
                 "timeZone": "Central Standard Time"
             },
-            "availabilityViewInterval": 1440
+            "availabilityViewInterval": 1440 # Duration of an event represented in minutes
         }
-        data_as_json = json.dumps(data)
-        user_calendar = user_client.post('/me/calendar/getSchedule', data=data_as_json, headers=header)
-        return user_calendar.json()
+
+        # If succcesful, the response.json() includes the events that occur within the inverval of start_date and end_date 
+        # This would include events that:
+        # start before start_date and end before end_date, 
+        # start before start_date and end after end_date, 
+        # start after start_date and end before end_date, 
+        # start after start_date and end after end_date
+        # The exception is if the event start on the end_date. That event will not be included in the response.json()
+        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(data), headers=header)
+
+        if (response.status_code == 200):
+            return response.json()
+        else:
+            raise Exception(response.json())
 
     def get_shared_calendar(self, start_date, end_date):
         """
-        Retrieves and returns a json object of the shared calendar events that are within/overlap with between the start_date and end_date
+        Retrieves and returns a json object of the shared calendar events
+          that are within/overlap between the start_date and end_date
 
-        Parameters 
-        ----------
-        user_client : msgraph.core._graph_client.GraphClient (Graph Client Object)
-        start_date : str
-            The start date of the timeframe
-        end_date : str
-            The end date of the timeframe
+            Parameters:
+                user_client (Graph Client Object) : msgraph.core._graph_client.GraphClient 
+                start_date (str): The start date of the timeframe
+                end_date (str): The end date of the timeframe
         """
-
+        access_token = self.device_code_credential.get_token(self.scope)
+        
         header = {
-            'Authorization': str(self.access_token),
+            'Authorization': str(access_token),
             'Content-Type': 'application/json'
         }
-        calendars = self.user_client.get('/me/calendars', headers=header)
-        list_of_calendars = json.dumps(calendars.json())
-        dict_of_calendars = json.loads(list_of_calendars)
-    
-        for item in dict_of_calendars['value']:
-            if item['name'] == self.shared_calendar_name:
-                self.shared_calendar_id = item['id']
+        response = self.user_client.get('/me/calendars', headers=header)
+        
+        # Loop through all the calendars available to the user, and find the one indicated in the yaml file and retrieve its calendar ID
+        #print(response.json())
+        for calendar in response.json()['value']:
+            if calendar['name'] == self.shared_calendar_name:
+                self.shared_calendar_id = calendar['id']
+                break
 
-        #print("Shared calendar id: " + self.shared_calendar_id)
+        # start_date = datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S")
+        # end_date = datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S")
 
+        start_date = str(start_date.date())
+        end_date = str(end_date.date())
+        
         header = {
-            'Authorization': str(self.access_token),
+            'Authorization': str(access_token),
             'Prefer': "outlook.timezone=\"Central Standard Time\""
         }
-        
-        # This request includes events that start between the start_date and end_date 
-        request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
-        response_one = self.user_client.get(request, headers=header)
 
-        # This request includes events that start before the start_date and end anytime after the start_date 
-        request =  '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&&$filter=start/dateTime lt ' + '\''+ start_date + '\'' + ' and end/dateTime ge ' + '\'' + start_date + '\''
-        response_two = self.user_client.get(request, headers=header)
+        # If succcesful, the response.json() includes the events that occur within the inverval of start_date and end_date 
+        # This would include events that:
+        # start before start_date and end before end_date, 
+        # start before start_date and end after end_date, 
+        # start after start_date and end before end_date, 
+        # start after start_date and end after end_date
+        # The exception is if the event start on the end_date. That event will not be included in the response.json()
+        request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=50&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
+        response = self.user_client.get(request, headers=header)
         
-        calendar = response_one.json()
+        if (response.status_code == 200):
+            return response.json()
+        else:
+            raise Exception(response.json())
 
-        for item in response_two.json()['value']:
-            calendar['value'].append(item)
-        
-        #print(calendar)
-        return calendar
+
+    def process_individual_calendars(self, calendar, user_start_date):
+        filtered_events = []
+        for member in calendar['value']:
+            net_id = member['scheduleId'].split('@')[0]
+            for event in member['scheduleItems']:
+                if event['status'] != 'oof': continue
+         
+                simple_events = SimpleEvent.create_event_for_individual_calendars(event, user_start_date, net_id)
+                filtered_events.extend(simple_events)
+                
+        return filtered_events
     
+    def process_shared_calendar(self, shared_calendar):
+        filtered_events = []
+        event_ids = {}
+        # the events can be multiday
+        
+        for event in shared_calendar['value']:
+    
+            if event['showAs'] != 'oof': continue
+            
+            simple_event = SimpleEvent.create_event_for_shared_calendar(event)
+            # Only valid events are returned as a simpleEvent object
+            if simple_event == None: continue
+            
+            filtered_events.append(simple_event)
+            event_date = str(simple_event.date.date())
+            
+            event_ids[simple_event.subject + event_date] = event['id']
+
+        return (filtered_events, event_ids)
+    
+    # @TODO: get rid of this function and call self.device_code_credential.get_token(self.scope) straight up instead
+    def get_access_token(self):
+        return self.device_code_credential.get_token(self.scope)
+
 def process_args():
         parser = argparse.ArgumentParser(
             prog = 'OutlookCalendar',
@@ -288,43 +178,80 @@ Program is controlled using the following environment variables:
             and the "OUTLOOK_LOGIN" key has values for login, password
         ''')
 
-        parser.add_argument('-s', '--shared', action='store_true', help='Feature to generate report')
-        parser.add_argument('-r', '--report', action='store_true', help='Feature to update shared calendar')        
+        parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
+        parser.add_argument('-r', '--report', action='store_true', help='Generate report using the shared calendar')        
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
-        parser.add_argument('-i', '--is_initial_use', action='store_true', help='Indicates whether this is first time running script')        
         parser.add_argument(dest= 'start_date', action='store', help='The start date of the timeframe. date format: YYYY-MM-DD')
         parser.add_argument(dest= 'end_date', action='store', help='The end date of the timeframe. date format: YYYY-MM-DD')
 
         args = parser.parse_args()
         
-        #print(args.start_date, args.end_date, args.shared, args.report)
         return args
+   
+def sanitize_input(user_args):    
+    # If the start_date and end_date given by user doesn't fit the format, then the datetime.strptime will 
+    # throw its own error
+    start = datetime.strptime(user_args.start_date,"%Y-%m-%d")
+    end = datetime.strptime(user_args.end_date,"%Y-%m-%d")
+
+    # Check whether start date occurs before end_date
+    assert (end - start).days >= 0, "start date should start date prior to the end date"    
+    return (start, end)
 
 if __name__ == '__main__':
+    # PROGRESS: Looking into whether I should include the headers for some of the calls because some of them seem to be working without headers
+    # Just changed the access_code of individual 
+
+
     # python3 OutlookCalendar.py [start date] [end date]
     # date format: YYYY-MM-DD
     args = process_args()
+    #print(args)
 
-    start_date = args.start_date
-    end_date = args.end_date
+    start_date, end_date = sanitize_input(args)
+    days_out = timedelta(days=7)
+
+    calendar = OutlookCalendar()
+    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
+    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+
+   
+    # if args.report:
+    #     GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
+
+    # if args.shared:
+    #     #individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
+    #     #SharedCalendar(individual_calendars, shared_calendar, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+    #     count = 0
+    #     while True:
+    #         print("Updating shared calendar")
+    #         print("count: " + str(count))
+
+    #         today = datetime.today()
+    #         start_date = today.strftime("%Y-%m-%d")
+    #         end_date = (today + days_out).strftime("%Y-%m-%d")
+
+    #         print("current date and time: " + str(today))
+
+    #         individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
+    #         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+            
+    #         #SharedCalendar(individual_calendars, shared_calendar, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+    #         SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+
+    #         count = count + 1
+    #         print("--------------------------------------------------------")
+    #         time.sleep(900)
+            
+
+    # if args.dump_json:
+    #     GenerateReport(shared_calendar, None).dump_calendar_to_json(shared_calendar, start_date, end_date)
+
     
-    my_calendar = OutlookCalendar(args.is_initial_use)
+   
+# pttran - OUT
+# pttran - OUT AM
+# pttran - OUT PM
 
-    # Retrieves each group member's default calendar 
-    calendar = my_calendar.get_group_members_calendars(my_calendar.user_client, start_date, end_date)
 
-    if (args.report == True):
-        print("Generating Report")
-        # Generates the report 
-        GenerateReport(calendar, my_calendar.group_members, "r", start_date, end_date)
-
-    if (args.dump_json == True):
-        print("Dumping Table Data To Console")
-        GenerateReport(calendar, my_calendar.group_members, "d")
-
-    if (args.shared == True):
-        print("Updating Shared Calendar")
-        # Retrieves the shared calendar among the group members 
-        shared_calendar = my_calendar.get_shared_calendar(start_date, end_date)
-        # Updates the shared calendar 
-        SharedCalendar(calendar, shared_calendar, my_calendar.shared_calendar_id, my_calendar.access_token, my_calendar.user_client, start_date[:4] + start_date[5:7] + start_date[8:])

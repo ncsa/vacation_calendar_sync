@@ -1,334 +1,91 @@
-from dbm import dumb
-from email import header
 import json
-from mimetypes import init
 from multiprocessing import Event
 from signal import ITIMER_REAL
-from tracemalloc import start
 from tabulate import tabulate, SEPARATING_LINE
-from datetime import date, datetime
+from datetime import datetime
 import collections
+from dataclasses import dataclass
+from SimpleEvent import SimpleEvent
 
-# done
-
+@dataclass
 class GenerateReport:
     """
-    Generates a report of the members' calendars within a start-end timeframe 
-
-    Attributes
-    ----------
-    calendar : dictionary 
-        A json dictionary of the events occuring within the start-end timeframe 
-    group_members: dictionary 
-        A dictionary with key:value pair of name and netid of the team members 
-    
-
-    Methods
-    -------
-    date_parser
-        Parses the date into a tuple of date (str) and time (str) and return the tuple
-    filter_dates
-        Parses the calendar and return a dictionary with key:value of dates and list of events on each day
-    dump_calendar_to_json
-        Dumps the filtered_calendar as json onto console 
-    calculate_mutliday_event_duration
-        Calculates the time duration between two dates in terms of days and return the duration as a str in X HR format 
-    print_table
-        Print out the report
-    mutliday_event_hander
-        Breaks multiday events into their own day and adding it to date_dict     
+    Generates a report of the members' calendars within a start-end timeframe  
     """
-
-    class UserEvent:
-        """
-        A class that represent each event 
-
-        Attributes
-        ----------
-        net_id : str
-            The net_id of the owner of the event
-        status : str
-            The status set for the event
-        subject : str
-            The name of the event
-        start_date : tuple
-            A tuple that includes the date (str) and time (str) of the start of the event
-        end_date : str
-            A tuple that includes the date (str) and time (str) of the end of the event
-
-        Methods 
-        -------
-        date_parser
-            Parses the date into a tuple of date (str) and time (str) and return the tuple
-        get_event
-            Return a list of Event attributes 
-        """
-        def printEvent(self):
-
-            print('event: ' + self.subject)
-            print('status: ' + self.status)
-            print('date: ' +  self.start_date[0])
-            print('start on: ' + self.start_date[1])
-            print('end on: ' + self.end_date[1])
-            print("*************************")
-            
-        def __init__(self, event, user) -> None:
-            """
-            Parameters
-            ----------
-            event : dictionary 
-                A dictionary  with information pertaining to the event 
-            user : str
-                Name of the user with this event 
-            """
-
-            self.net_id = user
-            self.status = event['status']
-            self.subject = event['subject']
-            self.start_date = self.date_parser(event['start']['dateTime'])
-            self.end_date = self.date_parser(event['end']['dateTime'])
-
-        def date_parser(self, date):
-            """
-            Parses the date into a tuple of date (str) and time (str) and return the tuple
-
-            Parameters
-            ----------
-            date : str
-                A string consisting of the exact time of the event 
-            """
-
-            date_time = date.split('T')
-            date = date_time[0]
-            date = date[5:] + "-" + date[:4]
-            time = date_time[1]
-            return (date, time[:5])
-
-        def get_event(self):
-            """
-            Return a list of Event attributes 
-            """
-
-            event = [
-                self.net_id,
-                self.status,
-                self.subject,
-                self.start_date,
-                self.end_date
-            ]
-            return event
-
+    calendar_as_json : dict
     
-    def __init__(self,calendar, group_members, mode, start_date, end_date) -> None:
-        """
-        Parameters
-        ----------
-        calendar : dictionary 
-            A json dictionary of the events occuring within the start-end timeframe 
-        group_members: dictionary 
-            A dictionary with key:value pair of name and netid of the team members 
-        mode: str 
-            Either Generate Report (r) mode or Dump Json (d) mode 
-        start_date : str
-            The start date of the timeframe (YYYY-MM-DD)
-        end_date : str
-            The end date of the timeframe (YYYY-MM-DD)
-        """
-        print(calendar)
-        pass
-        self.calendar = calendar
-        self.group_members = group_members
-        events = self.filter_dates(self.calendar)
+    def generate(self, mode, start_date, end_date):
+        filtered_events = self.filter_events(self.calendar_as_json)
+        
         if (mode == "r"):
-            self.print_table(events, start_date, end_date)
+            self.print_table(filtered_events, start_date, end_date)
         elif (mode == "d"):
-            self.dump_calendar_to_json(events)
-
-
-    def date_parser(self, date):
-        """
-        Parses the date into a tuple of date (str) and time (str) and return the tuple
-
-        Parameters
-        ----------
-        date : str
-            A string consisting of the exact time of the event 
-        """
-
-        date_time = date.split('T')
-        date = date_time[0]
-        date = date[5:] + "-" + date[:4]
-        time = date_time[1]
-        return (date, time[:5])
-
-    def filter_dates(self, calendar):
-        """
-        Parses the calendar and return a dictionary with key:value of dates and list of events on each day
-
-        calendar : json dictionary
-            A json dictionary of the events occuring within the start-end timeframe 
-        """
-
-        # date_dict is a dictionary with keys representing the dates, following the YYYYMMDD format, and each value contains a list of event objects.
-        # Within each list, the All-Day and Multi-Day events will be prioritized first. If an event is multiday, then each day in the time span will be made into an event object. (call mutliday_event_hander())
-        date_dict = {}
-        for member in calendar['value']:
-            net_id = member['scheduleId']
-            name = self.group_members[net_id]
-            for item in member['scheduleItems']:
-                if item['status'] == 'busy': 
-                    start_date = item['start']['dateTime']
-                    # Change variable day into a YYYYMMDD format 
-                    day = start_date[:10]
-                    day = (day[:4] + day[5:7] + day[8:])
+            self.dump_calendar_to_json(filtered_events)
         
-                    if (item['start']['dateTime'][0:10] != item['end']['dateTime'][:10]): # this could mean it's multiday or one single day event
-                        self.mutliday_event_hander(item['start']['dateTime'][0:10], item['end']['dateTime'][:10], date_dict, item, name)
-                        continue
-                    
-                    if day in date_dict:  
-                        # member_calendar_on_day is a dictionary with key as NetID and a list of Event objects as value. 
-                        event = self.UserEvent(item, name)
-                        date_dict[day].append(event)
-                    else:
-                        event = self.UserEvent(item, name)
-                        date_dict[day] = [event]
+    def filter_events(self, shared_calendar_events):
 
-        #print(self.dump_calendar_to_json(event_days_inorder))
-        # self.print_table(event_days_inorder)
-        return collections.OrderedDict(sorted(date_dict.items()))
+        # a dictionary with the key as the date (YYYY-MM-DD) and a list of simple events occuring on that day
+        date_to_events = {}
         
-    def dump_calendar_to_json(self, filtered_calendar):
-        """
-        Dumps the filtered_calendar as json onto console 
-
-        Parameters
-        ----------
-        filtered_calendar : dictionary 
-            A sorted dictionary of the events occuring within the start-end timeframe 
-        """
-
-        calendar_dict = {}
-
-        for key, value in filtered_calendar.items():
-            events = []
-            calendar_dict[key] = events
-            for item in value:
-                calendar_dict[key].append(item.get_event())
+        for event in shared_calendar_events[0]:    
+            if event.date in date_to_events:
+                date_to_events[event.date].append(event)
+            else:
+                date_to_events[event.date] = [event]
         
-        calendar_as_json = json.dumps(calendar_dict)
-        print(calendar_as_json)        
+        date_to_events = collections.OrderedDict(sorted(date_to_events.items()))
         
-    def calculate_mutliday_event_duration(self, start, end):
+        return date_to_events
+
+    def dump_calendar_to_json(self, events_by_date_dict, start_date, end_date):
         """
-        Calculates the time duration between two dates in terms of days and return the duration as a str in X HR format 
-
-        Parameters:
-        ----------
-        start : str 
-            The start date of the multiday event 
-        end: str
-            The end date of the multiday event
+        Dumps the events_by_date_dict as json onto console 
         """
+        #for date, events_on_date in events_by_date_dict.items():
+        events = []
 
-        duration = ""
-        start_hour = int(start[:2])
-        end_hour = int(end[:2])
-        start_minute = int(start[3:]) + (start_hour * 60)
-        end_minute = int(end[3:]) + (end_hour * 60)
-        diff_in_total_minutes = end_minute - start_minute
+        start_date = ''.join(start_date.split('-'))
+        end_date = ''.join(end_date.split('-'))
 
-        hour = diff_in_total_minutes // 60
-        minute = diff_in_total_minutes % 60
+        for date, events_on_date in events_by_date_dict.items():
+            # This condition would make sure that we only show the dates that the user asked for 
+            tmp_date = ''.join(date.split('-'))
+            if int(tmp_date) < int(start_date) or int(tmp_date) >= int(end_date):
+                continue
 
-        if (minute > 0):
-            hour = hour + 1
+            for event in events_on_date:
+                events.append([event.net_id, event.subject, event.date])
+            
+        print(json.dumps(events))
 
-        duration = str(hour) + " HR"
-        return duration
-
-    def print_table(self, filtered_calendar, start_date, end_date):
+    def print_table(self, events_by_date_dict, start_date, end_date):
         """
         Prints out the report 
-
-        Parameters
-        ----------
-        filtered_calendar
-            A sorted dictionary of the events occuring within the start-end timeframe 
-        start_date : str
-            The start date of the timeframe (YYYY-MM-DD)
-        end_date : str
-            The end date of the timeframe (YYYY-MM-DD)
         """
-        
-        first_row = False
-        fake_header = []
-        table = []
+        # Problem: We want to keep the length of each column the same as we print out x different tables.
+        # The tabulate library doesn't allow to create a fixed length for a column.
+        # Solution: Have the title of each column be the a long fixed length, in such a way that the values of the columns 
+        # are either less than or equal to to the fixed length
 
-        start_date = start_date[:4] + start_date[5:7] + start_date[8:]
-        end_date = end_date[:4] + end_date[5:7] + end_date[8:]
-        
-        for key, value in filtered_calendar.items():
-            if int(key) < int(start_date) or int(key) >= int(end_date):
+        tabulate.PRESERVE_WHITESPACE = True
+        # The max length of the name of the days of the week
+        max_length = 9
+        start_date = ''.join(start_date.split('-'))
+        end_date = ''.join(end_date.split('-'))
+
+        for date, events in events_by_date_dict.items():
+            # This condition would make sure that we only show the dates that the user asked for 
+            tmp_date = ''.join(date.split('-'))
+            if int(tmp_date) < int(start_date) or int(tmp_date) >= int(end_date):
                 continue
             
-            date = datetime(int(key[:4]), int(key[4:6]), int(key[6:]), 0, 0, 0)
-            day = date.strftime('%A')
-            header = [day + " " + key[4:6] + "-" + key[6:] + "-" + key[:4], ""]
-
-            if (first_row == False):
-                fake_header = [day + " " + key[4:6] + "-" + key[6:] + "-" + key[:4], ""]
-                first_row = True
-            else:
-                table.append(header)
-                table.append(SEPARATING_LINE)
-            for event in value:
-                if event.start_date[1] == "00:00" and event.end_date[1] == "00:00":
-                    row = [event.net_id, "All Day"]    
-                else:
-                    duration = self.calculate_mutliday_event_duration(str(event.start_date[1]), str(event.end_date[1]))
-                    row = [event.net_id, str(event.start_date[1]) + ' - ' + str(event.end_date[1]) + " (" + duration + ")"]
-                table.append(row)
-
-            table.append([])
-        
-        #self.json_result = json.dumps(table)
-        print(tabulate(table, headers=fake_header, tablefmt="simple"))
-
-    def mutliday_event_hander(self, start, end, date_dict, item, user): 
-        """
-        Breaks multiday events into their own day and adding it to date_dict 
-
-        Parameters
-        ----------
-
-        start : str
-            The start date of the multiday event 
-        end : str
-            The end date of the multiday event 
-        date_dict : dictionary 
-            A dictionary with key:value pair of dates and list of UserEvent objects 
-        item: dictionary
-            A dictionary  with information pertaining to the event 
-        user : str 
-            Name of the user with this event 
-        """
-
-        # if an event goes in here, then it's all day
-
-        start_object = datetime.strptime(start,"%Y-%m-%d")
-        end_object = datetime.strptime(end,"%Y-%m-%d")
-
-        delta = end_object - start_object
-  
-        diff = (end_object  - start_object ) / delta.days
-        for i in range( delta.days):
-            day = (start_object + diff * i).strftime("%Y%m%d")
-            if day in date_dict:
-                event = self.UserEvent(item, user)
-                date_dict[day].insert(0, event)
-            else:
-                event = self.UserEvent(item, user)
-                date_dict[day] = [event]
-                
-    
+            # Figure out the day (Monday, Wednesday, etc) 
+            day_of_the_week = (datetime(int(tmp_date[:4]), int(tmp_date[4:6]), int(tmp_date[6:]), 0, 0, 0)).strftime('%A')
+            
+            num_of_whitespace_to_add = 0 if len(day_of_the_week) == max_length else max_length - len(day_of_the_week)            
+            
+            column_one_title = day_of_the_week + " " + tmp_date[4:6] + "-" + tmp_date[6:] + "-" + tmp_date[:4] + (num_of_whitespace_to_add * " ")
+            column_two_title = " " * 7
+            
+            print(tabulate(events, headers=["net_id", column_one_title, column_two_title], tablefmt="simple")) 
+            print("")
