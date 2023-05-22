@@ -4,6 +4,17 @@ import datetime
 from datetime import timedelta 
     
 def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, access_token, user_client):
+    """
+    Update the specified shared calendar by adding and deleting events from it
+
+    Args:
+        individual_calendars (list): A list of SimpleEvents from each member's calendars
+        shared_calendar: A list of SimpleEvents obtained from the shared calendar
+        shared_calendar_id (str): The associated id to the shared calendar
+        access_token (int): The access token for the project
+        user_client (GraphClient Object)
+    """
+
     individual_events_set  = set(create_tuple(individual_calendars))
     shared_events_set = set(create_tuple(shared_calendar))
     
@@ -14,6 +25,16 @@ def update_shared_calendar(individual_calendars, shared_calendar, event_ids, sha
     delete_event_from_shared_calendar(user_client, events_to_delete, shared_calendar_id, event_ids, access_token)
 
 def create_tuple(calendar):
+    """
+    Create a tuple for each events in calendar
+
+    Args:
+        calendar (list): a list of Simple Events
+    
+    Returns:
+        A set of tuple events
+    """
+
     events = []
     for event in calendar:
         event_tuple = (event.net_id, event.subject, str(event.date.date()))
@@ -24,15 +45,11 @@ def add_event_to_shared_calendar(user_client, events_to_add, calendar_id, access
     """
     Make POST request to Outlook to add events to the shared calendar 
 
-    Parameters
-    ----------
-    user_client : GraphClient Object 
-    events : dictionary 
-        A dictionary with key:value pair of date and list of events to be added 
-    calendar_id : str
-        The id of the shared calendar 
-    access_token : int 
-        The access token for the project
+    Args:
+        user_client (GraphClient Object)
+        events_to_add (list): A list of tuple events
+        calendar_id (str): The id of the shared calendar
+        access_token (int): The access token for the project
     """
 
     # (event.net_id, event.subject, event.date)
@@ -49,7 +66,7 @@ def add_event_to_shared_calendar(user_client, events_to_add, calendar_id, access
         }
         payload = {
             "subject": event[1],
-            "showAs": "oof",
+            "showAs": "free",
             "start": {
                 "dateTime": start_date_time,
                 "timeZone": "Central Standard Time"
@@ -73,15 +90,11 @@ def delete_event_from_shared_calendar(user_client, events_to_delete, calendar_id
     """
     Make DELETE request to Outlook to delete events from the shared calendar 
 
-    Parameters
-    ----------
-    user_client : GraphClient Object 
-    events : dictionary 
-        A dictionary with key:value pair of date and list of events to be added 
-    calendar_id : str
-        The id of the shared calendar 
-    access_token : int 
-        The access token for the project
+    Args:
+        user_client : GraphClient Object 
+        events_to_delete (list): A list of tuple events
+        calendar_id (str): The id of the shared calendar
+        access_token (int): The access token for the project
     """
 
     for event in events_to_delete:

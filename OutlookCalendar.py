@@ -19,6 +19,7 @@ class OutlookCalendar:
         """
         Initializes the members variables by retrieving the netrc and yaml file
         """
+
         required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name']
 
         # Created ENV variable using docker's ENV command in Dockerfile
@@ -37,9 +38,12 @@ class OutlookCalendar:
         Retrieves and returns a json object of individuals'calendar events
           that are within/overlap between the start_date and end_date
 
-            Parameters:
-                start_date (string): the start date of the calendar (YYYY-MM-DD)
-                end_date (string): the end date of the calendar (YYYY-MM-DD)
+        Args:
+            start_date (datetime object): the start date of the calendar (YYYY-MM-DD)
+            end_date (dateime object): the end date of the calendar (YYYY-MM-DD)
+        
+        Returns:
+            json: json object of the events within/overlap between the start and end date
         """
 
         header = {
@@ -70,6 +74,8 @@ class OutlookCalendar:
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
         response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(data), headers=header)
 
+        #print(response.json())
+
         if (response.status_code == 200):
             return response.json()
         else:
@@ -80,11 +86,15 @@ class OutlookCalendar:
         Retrieves and returns a json object of the shared calendar events
           that are within/overlap between the start_date and end_date
 
-            Parameters:
-                user_client (Graph Client Object) : msgraph.core._graph_client.GraphClient 
-                start_date (str): The start date of the timeframe
-                end_date (str): The end date of the timeframe
+        Args:
+            user_client (Graph Client Object) : msgraph.core._graph_client.GraphClient 
+            start_date (str): The start date of the timeframe
+            end_date (str): The end date of the timeframe
+        
+        Returns:
+            json: json object of the events within/overlap between the start and end date
         """
+
         access_token = self.device_code_credential.get_token(self.scope)
         
         header = {
@@ -128,6 +138,18 @@ class OutlookCalendar:
 
 
     def process_individual_calendars(self, calendar, user_start_date):
+        """
+        Creates simple event objects using the the individual work calendars 
+
+        Args:
+            calendar (json): json object of the events within/overlap between a specified start and end date for indvidual calendars
+            user_start_date (datetime): a datetime object that represents the start time specified by the user (the current date)
+
+        Returns: 
+            list: A list of SimpleEvent objects
+
+        """
+
         filtered_events = []
         for member in calendar['value']:
             net_id = member['scheduleId'].split('@')[0]
@@ -140,13 +162,24 @@ class OutlookCalendar:
         return filtered_events
     
     def process_shared_calendar(self, shared_calendar):
+        """
+        Creates simple event objects using the the individual work calendars 
+
+        Args:
+            calendar (json): json object of the events within/overlap between a specified start and end date for indvidual calendars
+            user_start_date (datetime): a datetime object that represents the start time specified by the user (the current date)
+
+        Returns: 
+            tuple: A tuple containing a list of SimpleEvent objects and a list of the correspending event ids 
+        """
+
         filtered_events = []
         event_ids = {}
         # the events can be multiday
         
         for event in shared_calendar['value']:
     
-            if event['showAs'] != 'oof': continue
+            if event['showAs'] != 'free': continue
             
             simple_event = SimpleEvent.create_event_for_shared_calendar(event)
             # Only valid events are returned as a simpleEvent object
@@ -189,6 +222,8 @@ Program is controlled using the following environment variables:
         return args
    
 def sanitize_input(user_args):    
+    """ Sanitizes the user arguments to verify their validity """
+
     # If the start_date and end_date given by user doesn't fit the format, then the datetime.strptime will 
     # throw its own error
     start = datetime.strptime(user_args.start_date,"%Y-%m-%d")
@@ -212,6 +247,7 @@ if __name__ == '__main__':
     days_out = timedelta(days=7)
 
     calendar = OutlookCalendar()
+    #calendar.get_individual_calendars(start_date, end_date)
     shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
     individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
     SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
