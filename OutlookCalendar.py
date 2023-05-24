@@ -247,42 +247,40 @@ if __name__ == '__main__':
     days_out = timedelta(days=7)
 
     calendar = OutlookCalendar()
-    #calendar.get_individual_calendars(start_date, end_date)
-    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
-    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+    
+    #shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    # individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
+    # SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
    
-    # if args.report:
-    #     GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
+    if args.report:
+        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+        GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
 
-    # if args.shared:
-    #     #individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
-    #     #SharedCalendar(individual_calendars, shared_calendar, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
-    #     count = 0
-    #     while True:
-    #         print("Updating shared calendar")
-    #         print("count: " + str(count))
+    if args.shared:
+        count = 0
+        while True:
+            print("Updating shared calendar")
+            print("count: " + str(count))
 
-    #         today = datetime.today()
-    #         start_date = today.strftime("%Y-%m-%d")
-    #         end_date = (today + days_out).strftime("%Y-%m-%d")
+            today = datetime.today()
+            start_date = today.strftime("%Y-%m-%d")
+            end_date = (today + days_out).strftime("%Y-%m-%d")
 
-    #         print("current date and time: " + str(today))
+            print("current date and time: " + str(today))
 
-    #         individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
-    #         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+            individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
+            shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
             
-    #         #SharedCalendar(individual_calendars, shared_calendar, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
-    #         SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+            SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
-    #         count = count + 1
-    #         print("--------------------------------------------------------")
-    #         time.sleep(900)
+            count = count + 1
+            print("--------------------------------------------------------")
+            time.sleep(900)
             
 
-    # if args.dump_json:
-    #     GenerateReport(shared_calendar, None).dump_calendar_to_json(shared_calendar, start_date, end_date)
+    if args.dump_json:
+        GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
 
     
    
