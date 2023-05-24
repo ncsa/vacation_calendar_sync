@@ -128,7 +128,7 @@ class OutlookCalendar:
         # start after start_date and end before end_date, 
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
-        request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=50&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
+        request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
         response = self.user_client.get(request, headers=header)
         
         if (response.status_code == 200):
