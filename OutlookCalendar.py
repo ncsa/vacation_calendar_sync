@@ -12,6 +12,9 @@ from SimpleEvent import SimpleEvent
 import os 
 from datetime import timedelta 
 import time
+import string
+import logging
+from logging import handlers
 
 class OutlookCalendar:
 
@@ -149,9 +152,10 @@ class OutlookCalendar:
             list: A list of SimpleEvent objects
 
         """
-
+        #print(calendar)
         filtered_events = []
         for member in calendar['value']:
+            #print("member: " + str(member))
             net_id = member['scheduleId'].split('@')[0]
             for event in member['scheduleItems']:
                 if event['status'] != 'oof': continue
@@ -214,8 +218,8 @@ Program is controlled using the following environment variables:
         parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
         parser.add_argument('-r', '--report', action='store_true', help='Generate report using the shared calendar')        
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
-        parser.add_argument(dest= 'start_date', action='store', help='The start date of the timeframe. date format: YYYY-MM-DD')
-        parser.add_argument(dest= 'end_date', action='store', help='The end date of the timeframe. date format: YYYY-MM-DD')
+        #parser.add_argument(dest= 'start_date', action='store', help='The start date of the timeframe. date format: YYYY-MM-DD')
+        #parser.add_argument(dest= 'end_date', action='store', help='The end date of the timeframe. date format: YYYY-MM-DD')
 
         args = parser.parse_args()
         
@@ -234,6 +238,19 @@ def sanitize_input(user_args):
     return (start, end)
 
 if __name__ == '__main__':
+    # Define Logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
+
+    file_handler = logging.FileHandler(filename='output.log')
+    file_handler.setFormatter(formater)
+    file_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+
+
     # PROGRESS: Looking into whether I should include the headers for some of the calls because some of them seem to be working without headers
     # Just changed the access_code of individual 
 
@@ -243,7 +260,9 @@ if __name__ == '__main__':
     args = process_args()
     #print(args)
 
-    start_date, end_date = sanitize_input(args)
+    #start_date, end_date = sanitize_input(args)
+    start_date = None
+    end_date = None
     days_out = timedelta(days=7)
 
     calendar = OutlookCalendar()
@@ -252,22 +271,26 @@ if __name__ == '__main__':
     # individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
     # SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
-   
+    
     if args.report:
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
         GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
 
-    if args.shared:
+    if args.update_shared_calendar:
         count = 0
         while True:
-            print("Updating shared calendar")
-            print("count: " + str(count))
+            logger.info("Updating shared calendar -> Count : {count}".format(count))
+            #print("Updating shared calendar")
+            #print("count: " + str(count))
 
             today = datetime.today()
-            start_date = today.strftime("%Y-%m-%d")
-            end_date = (today + days_out).strftime("%Y-%m-%d")
+            #start_date = today.strftime("%Y-%m-%d")
+            #end_date = (today + days_out).strftime("%Y-%m-%d")
+            #print("start_date type: "  + str(type(start_date)))
+            start_date = today
+            end_date = today + days_out
 
-            print("current date and time: " + str(today))
+            #print("current date and time: " + str(today))
 
             individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)
             shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
@@ -275,7 +298,7 @@ if __name__ == '__main__':
             SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
             count = count + 1
-            print("--------------------------------------------------------")
+            #print("--------------------------------------------------------")
             time.sleep(900)
             
 
