@@ -3,6 +3,16 @@ import json
 import datetime
 from datetime import timedelta 
 import logging
+import sys 
+import time
+import os 
+import yaml
+
+
+path = os.getenv('AZURE_GRAPH_AUTH')
+with open(path, 'r') as file:
+    dictionary = yaml.safe_load(file)
+    logging_path = dictionary['logging_file_path']
 
 # Define Logger
 logger = logging.getLogger(__name__)
@@ -10,11 +20,15 @@ logger.setLevel(logging.DEBUG)
 
 formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
 
-file_handler = logging.FileHandler(filename='output.log')
+file_handler = logging.FileHandler(filename=logging_path)
 file_handler.setFormatter(formater)
 file_handler.setLevel(logging.INFO)
-
 logger.addHandler(file_handler)
+
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(formater)
+stream_handler.setLevel(logging.DEBUG)
+logger.addHandler(stream_handler)
     
 def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, access_token, user_client):
     """
@@ -64,8 +78,10 @@ def add_event_to_shared_calendar(user_client, events_to_add, calendar_id, access
         calendar_id (str): The id of the shared calendar
         access_token (int): The access token for the project
     """
-
+    #logger.debug("Access token: {}".format(access_token))
+    
     # (event.net_id, event.subject, event.date)
+    counter = 0
     for event in events_to_add:
         #print(event)
         start_date_time = event[2] + "T00:00:00.0000000"
@@ -75,6 +91,7 @@ def add_event_to_shared_calendar(user_client, events_to_add, calendar_id, access
         
         header = {
             'Authorization': str(access_token),
+            #'Authorization': str(access_token.get_access_token()),
             'Content-Type': "application/json",
         }
         payload = {
@@ -98,8 +115,13 @@ def add_event_to_shared_calendar(user_client, events_to_add, calendar_id, access
             #print("Unsuccessfully added " + event[1] + " to calendar")
             logger.info("Unsuccessfully added {event} to calendar",  event[1])
         else:
-            #print("Adding Event: " + event[1] + " on " + event[2])
+            #print(str(counter) + " Adding Event: " + event[1] + " on " + event[2])
             logger.info("Adding Event: {event_subject} on {event_date}".format(event_subject = event[1], event_date = event[2]))
+
+        # counter = counter + 1
+        # if (counter % 10 == 0):
+        #     time.sleep(360)
+        #     counter = 0
 
 def delete_event_from_shared_calendar(user_client, events_to_delete, calendar_id, event_ids, access_token):
     """
@@ -111,6 +133,7 @@ def delete_event_from_shared_calendar(user_client, events_to_delete, calendar_id
         calendar_id (str): The id of the shared calendar
         access_token (int): The access token for the project
     """
+    counter = 0
 
     for event in events_to_delete:
         event_id = event_ids[event[1] + event[2]]
@@ -122,9 +145,14 @@ def delete_event_from_shared_calendar(user_client, events_to_delete, calendar_id
 
         if (response.status_code != 204): #204 No Content
             #print("Unsuccessfully deleted " + event[1] + " from calendar")
-            logger.info("Unsuccessfully deleted {event} from calendar",  event[1])
+            logger.info("Unsuccessfully deleted {event} from calendar".format(event=event[1]))
         else:
             #print("Deleting Event: " + event[1])
-            logger.info("Deleting Event: {event}",  event[1])
+            logger.info("Deleting Event: {event}".format(event=event[1]))
+
+        # counter = counter + 1
+        # if (counter % 10 == 0):
+        #     time.sleep(360)
+        #     counter = 0
         
 

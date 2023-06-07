@@ -1,6 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import timedelta 
+import yaml 
+import os
+
+path = os.getenv('AZURE_GRAPH_AUTH')
+with open(path, 'r') as file:
+    dictionary = yaml.safe_load(file)
+    AM_config = dictionary['AM_config']
+    PM_config = dictionary['PM_config']
 
 @dataclass
 class SimpleEvent:
@@ -140,9 +148,7 @@ class SimpleEvent:
             False if not
         '''
 
-        # start: 9AM = 9 * 60 = 540
-        # end: 11:50AM = 11 * 60 + 50 = 710
-        if ((start.hour * 60) + start.minute <= 540 and (end.hour * 60) + end.minute >= 710):
+        if ((start.hour * 60) + start.minute <= AM_config['start'] and (end.hour * 60) + end.minute >= AM_config['end']):
             return True
         return False
     
@@ -161,14 +167,12 @@ class SimpleEvent:
         Returns: 
             True if the event is PM
             False if not
-        '''
-
-        # start: 1PM = 13 * 60 = 780
-        # end: 3:50PM = 15 * 60 + 50 = 950
-        # 1:00 PM 3:50 PM
-        if ((start.hour * 60) + start.minute <= 780 and (end.hour * 60) + end.minute >= 950):
+        ''' 
+        
+        if ((start.hour * 60) + start.minute <= PM_config['start'] and (end.hour * 60) + end.minute >= PM_config['end']):
             return True 
         return False
+    
     
     @staticmethod
     def make_datetime(date):
