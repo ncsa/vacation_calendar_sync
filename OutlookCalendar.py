@@ -237,6 +237,21 @@ def sanitize_input(user_args):
     assert (end - start).days >= 0, "start date should start date prior to the end date"    
     return (start, end)
 
+def debug():
+    calendar = OutlookCalendar()
+    days_out = timedelta(days=4)
+    start_date = datetime(year=2023, month=5, day=22)
+    end_date = start_date + days_out
+    
+    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
+
+    #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+
+    #SharedCalendar.post_batch_request(calendar.user_client, calendar.get_access_token(), calendar.shared_calendar_id)
+    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
+   
+
 
 if __name__ == '__main__':
     calendar = OutlookCalendar()
@@ -258,6 +273,8 @@ if __name__ == '__main__':
     # date format: YYYY-MM-DD
     args = process_args()
     #print(args)
+
+    #debug()
 
     #start_date, end_date = sanitize_input(args)
     start_date = None
@@ -292,19 +309,6 @@ if __name__ == '__main__':
             
     if args.dump_json:
         GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
-
-def debug():
-    calendar = OutlookCalendar()
-
-    start_date = datetime(year=2023, month=5, day=1)
-    end_date = start_date + days_out
-    
-    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date)   
-
-    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
-    #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
-   
 
 
 # pttran - OUT

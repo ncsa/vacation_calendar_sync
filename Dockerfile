@@ -18,3 +18,5 @@ ENV AZURE_GRAPH_AUTH="/root/vacation_calendar_sync_config.yaml"
 #RUN mkdir /duo_auth/app
 
 CMD ["bash"]
+
+#CMD [ "python3 OutlookCalendar.py" ]
