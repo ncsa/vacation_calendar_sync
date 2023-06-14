@@ -20,7 +20,7 @@ class SimpleEvent:
     # The list will return 1 item if the event is a one day event 
     # Otherwise, the length of the list is equal to length of the event in terms of days
     @classmethod 
-    def create_event_for_individual_calendars(cls, event, user_start_date, net_id):
+    def create_event_for_individual_calendars(cls, event, user_start_date, user_end_date, net_id):
         '''
         Create SimpleEvents and returns a list of SimpleEvents using events from individual calendars
 
@@ -38,7 +38,7 @@ class SimpleEvent:
         end = SimpleEvent.make_datetime(event['end']['dateTime'])
 
         if start.date() == end.date():
-            if SimpleEvent.is_event_valid(user_start_date, start, end):
+            if SimpleEvent.is_event_valid(user_start_date, user_end_date, start, end):
                 return [cls(net_id, SimpleEvent.get_event_subject(start, end, net_id), start)]
             return []
 
@@ -63,7 +63,7 @@ class SimpleEvent:
                 new_start = new_start.replace(hour=0,minute=0,second=0)
                 new_end = new_end.replace(hour=23,minute=59,second=59)
 
-            if SimpleEvent.is_event_valid(user_start_date, new_start, new_end):
+            if SimpleEvent.is_event_valid(user_start_date, user_end_date, new_start, new_end):
                 events.append(cls(net_id, SimpleEvent.get_event_subject(new_start, new_end, net_id), new_start))
                 
         return events
@@ -113,7 +113,7 @@ class SimpleEvent:
             return net_id + " OUT PM"    
     
     @staticmethod    
-    def is_event_valid(user_start, start, end):
+    def is_event_valid(user_start, user_end, start, end):
         '''
         Verify whether the event duration fit within the specified start and end time
 
@@ -127,9 +127,14 @@ class SimpleEvent:
             False if not
         '''
 
-        if user_start <= start and (SimpleEvent.is_AM(start, end) or SimpleEvent.is_PM(start,end)):
+        # if user_start <= start and (SimpleEvent.is_AM(start, end) or SimpleEvent.is_PM(start,end)):
+        #     return True
+        # return False
+
+        if (user_start <= start and user_end > start) and (SimpleEvent.is_AM(start, end) or SimpleEvent.is_PM(start,end)):
             return True
         return False
+
     
 
     @staticmethod    
