@@ -3,11 +3,8 @@ import json
 import datetime
 from datetime import timedelta 
 import logging
-import sys 
-import time
-import os 
-import yaml
 import math
+import utils
 
 MAX_REQUESTS_PER_BATCH = 20
 
@@ -195,6 +192,8 @@ def post_batch(user_client, access_token, batches):
     for batch in batches:
         response = user_client.post(endpoint,data=json.dumps(batch), headers=header)
         if response.status_code == 400:
+            message = "Unable to post batch \n" + str(response.json()["error"])
+            utils.send_email(user_client, access_token, message)
             logger.error(response.json()["error"])
             continue
         check_batch_responses(batch, response.json()["responses"])        

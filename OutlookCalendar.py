@@ -14,6 +14,8 @@ from datetime import timedelta
 import time
 import logging
 from logging import handlers
+import utils
+import sys
 
 class OutlookCalendar:
 
@@ -54,7 +56,7 @@ class OutlookCalendar:
             'Prefer': "outlook.timezone=\"Central Standard Time\""
         }
         
-        data = {        
+        payload = {        
             "schedules": list(self.group_members.keys()), # List of the net_ids of each individual listed in the yaml file
             "startTime": {
                 "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
@@ -74,13 +76,13 @@ class OutlookCalendar:
         # start after start_date and end before end_date, 
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
-        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(data), headers=header)
 
-        #print(response.json())
+        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
 
         if (response.status_code == 200):
             return response.json()
         else:
+            utils.send_email(self.user_client, self.get_access_token(), "Unable to retrieve individual calendars")
             raise Exception(response.json())
 
     def get_shared_calendar(self, start_date, end_date):
@@ -130,27 +132,13 @@ class OutlookCalendar:
         # start after start_date and end before end_date, 
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
-        events_dict = {}
-
         request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
-        #request_two = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime lt ' + '\''+ start_date + '\'' + ' and end/dateTime ge ' + '\'' + start_date + '\''  + ' and end/dateTime le ' + '\'' + end_date + '\''     
-        #request_three = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime lt ' + '\''+ start_date + '\'' + ' and end/dateTime gt ' + '\'' + end_date + '\''     
-
         response = self.user_client.get(request, headers=header)
-        #response_two = self.user_client.get(request_two, headers=header)
-        #response_three = self.user_client.get(request_three, headers=header)
 
-        #events_dict.update(response.json())
-        #events_dict['value'].extend(response_two.json()['value'])
-        #events_dict['value'].extend(response_three.json()['value'])
-
-        #print(events_dict)
-        
-        #print(response.json())
-        #print(type(response.json()))
         if (response.status_code == 200):
             return response.json()
         else:
+            utils.send_email(self.user_client, self.get_access_token(), "Unable to retrieve shared calendar")
             raise Exception(response.json())
 
 
@@ -231,74 +219,37 @@ Program is controlled using the following environment variables:
         ''')
 
         parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
-        parser.add_argument('-r', '--report', action='store_true', help='Generate report using the shared calendar')        
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
-        #parser.add_argument(dest= 'start_date', action='store', help='The start date of the timeframe. date format: YYYY-MM-DD')
-        #parser.add_argument(dest= 'end_date', action='store', help='The end date of the timeframe. date format: YYYY-MM-DD')
-
+        parser.add_argument('-m', '--manual_update', action='store', nargs=2, help="manually update the shared calendar")
+        
         args = parser.parse_args()
         
         return args
    
-def sanitize_input(user_args):    
+def sanitize_input(start_date, end_date):    
     """ Sanitizes the user arguments to verify their validity """
 
     # If the start_date and end_date given by user doesn't fit the format, then the datetime.strptime will 
     # throw its own error
-    start = datetime.strptime(user_args.start_date,"%Y-%m-%d")
-    end = datetime.strptime(user_args.end_date,"%Y-%m-%d")
+    start_date = datetime.strptime(start_date,"%Y-%m-%d")
+    end_date = datetime.strptime(end_date,"%Y-%m-%d")
 
     # Check whether start date occurs before end_date
-    assert (end - start).days >= 0, "start date should start date prior to the end date"    
-    return (start, end)
+    assert (end_date - start_date).days >= 0, "start date should start date prior to the end date"    
+    return (start_date, end_date)
 
 def debug():
+    print("In debug mode")
     calendar = OutlookCalendar()
     days_out = timedelta(days=7)
     start_date = datetime(year=2023, month=5, day=22)
     end_date = start_date + days_out
     
-    # shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    # individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
-    # SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
-    send_email(calendar.user_client, calendar.get_access_token())
-   
+    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
+    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
 
-def send_email(user_client, access_token):
-    endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
-
-    header = {
-        "Authorization": str(access_token),
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "message": {
-            "subject": "Reporting Error Test",
-            "body": {
-            "contentType": "Text",
-            "content": "This email is reporting an error"
-            },
-            "toRecipients": [
-            {
-                "emailAddress": {
-                "address": "phongttran01@gmail.com"
-                }
-            }
-            ],
-            "ccRecipients": [
-            {
-                "emailAddress": {
-                "address": "phongttran01@gmail.com"
-                }
-            }
-            ]
-        },
-        "saveToSentItems": "false"
-    }
-
-    response = user_client.post(endpoint, data=json.dumps(payload), headers=header)
-    print(response)
+    #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
 
 if __name__ == '__main__':
     calendar = OutlookCalendar()
@@ -321,16 +272,16 @@ if __name__ == '__main__':
     args = process_args()
     #print(args)
 
-    debug()
+    #debug()
 
     #start_date, end_date = sanitize_input(args)
     start_date = None
     end_date = None
     days_out = timedelta(days=7)
 
-    if args.report:
-        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-        GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
+    # if args.report:
+    #     shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    #     GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
 
     if args.update_shared_calendar:
         count = 0
@@ -355,8 +306,17 @@ if __name__ == '__main__':
             time.sleep(900)
             
     if args.dump_json:
+        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
         GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
 
+
+    if args.manual_update:
+        dates = sanitize_input(args.manual_update[0], args.manual_update[1])
+        start_date = dates[0]
+        end_date = dates[1]
+        individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
+        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+        SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
 # pttran - OUT
 # pttran - OUT AM
