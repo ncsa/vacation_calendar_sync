@@ -1,6 +1,7 @@
 import json
 import yaml
 import os
+import sys
 
 SUBJECT = "Vacation Calendar Sync Error Notification"
 
@@ -47,3 +48,15 @@ def send_email(user_client, access_token, message):
     }
 
     response = user_client.post(endpoint, data=json.dumps(payload), headers=header)
+
+def report_unhealthy():
+    '''
+    A fatal error has occured
+    '''
+    sys.exit(1)
+
+def report_healthy():
+    '''
+    No error has occured
+    '''
+    sys.exit(0)

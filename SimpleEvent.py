@@ -219,4 +219,4 @@ class SimpleEvent:
 # 			}
 # 		}
 
-# print(SimpleEvent.create_event_for_individual_calendars(event, "2023-03-19", "pttran3"))
+

@@ -16,7 +16,8 @@ import logging
 from logging import handlers
 import utils
 import sys
-
+import requests.exceptions
+from http import client
 class OutlookCalendar:
 
     def __init__(self):    
@@ -24,7 +25,7 @@ class OutlookCalendar:
         Initializes the members variables by retrieving the netrc and yaml file
         """
 
-        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path']
+        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']
 
         # Created ENV variable using docker's ENV command in Dockerfile
         path = os.getenv('AZURE_GRAPH_AUTH')
@@ -76,8 +77,11 @@ class OutlookCalendar:
         # start after start_date and end before end_date, 
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
-
-        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+        
+        try:
+            response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+        except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
+            utils.send_email(self.user_client, self.get_access_token(), error)
 
         if (response.status_code == 200):
             return response.json()
@@ -154,10 +158,9 @@ class OutlookCalendar:
             list: A list of SimpleEvent objects
 
         """
-        #print(calendar)
+
         filtered_events = []
         for member in calendar['value']:
-            #print("member: " + str(member))
             net_id = member['scheduleId'].split('@')[0]
     
             for event in member['scheduleItems']:
@@ -205,22 +208,20 @@ class OutlookCalendar:
 
 def process_args():
         parser = argparse.ArgumentParser(
-            prog = 'OutlookCalendar',
+            prog = 'vacation_calendar_sync',
             formatter_class=argparse.RawDescriptionHelpFormatter,
-            description = 'Generate a report for employees who are status \'away\' within a timeframe. \n' +
-            'Updates shared calendar among team members using each member\'s calendar with events marked with status \'away\'',
+            description = 'Updates shared calendar among team members using each member\'s calendar with events marked as status \'away\'',
             epilog = 
-        '''
+                '''
 Program is controlled using the following environment variables:
-    NETRC
-        path to netrc file (default: ~/.netrc)                    
-            where netrc file has keys "OUTLOOK_LOGIN" 
-            and the "OUTLOOK_LOGIN" key has values for login, password
-        ''')
+    AZURE_GRAPH_AUTH
+        path to the yaml configuration file          
+                ''')
 
         parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
-        parser.add_argument('-m', '--manual_update', action='store', nargs=2, help="manually update the shared calendar")
+        parser.add_argument('-m', '--manual_update', action='store', nargs=2, help="Manually update the shared calendar with start and end time "+
+                            "with format YYYY-MM-DD")
         
         args = parser.parse_args()
         
@@ -245,13 +246,13 @@ def debug():
     start_date = datetime(year=2023, month=5, day=22)
     end_date = start_date + days_out
     
-    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
-    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
+    #shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    #individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
+    #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
 
-    #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
+    utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
 
-if __name__ == '__main__':
+def main():
     calendar = OutlookCalendar()
 
     # Define Logger
@@ -277,11 +278,7 @@ if __name__ == '__main__':
     #start_date, end_date = sanitize_input(args)
     start_date = None
     end_date = None
-    days_out = timedelta(days=7)
-
-    # if args.report:
-    #     shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    #     GenerateReport(shared_calendar_events).generate("r", start_date, end_date)
+    days_out = timedelta(days=calendar.days_out)
 
     if args.update_shared_calendar:
         count = 0
@@ -294,16 +291,13 @@ if __name__ == '__main__':
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
             end_date = start_date + days_out
 
-            #print("current date and time: " + str(today))
-
             individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
             shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
             
             SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
             count = count + 1
-            #time.sleep(900)
-            time.sleep(900)
+            time.sleep(calendar.update_interval)
             
     if args.dump_json:
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
@@ -318,8 +312,6 @@ if __name__ == '__main__':
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
         SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
-# pttran - OUT
-# pttran - OUT AM
-# pttran - OUT PM
-
+if __name__ == '__main__':
+    main()
 
