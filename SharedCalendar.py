@@ -145,7 +145,8 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
                 "end": {
                     "dateTime": end_date_time,
                     "timeZone": "Central Standard Time"
-                }
+                },
+                "categories": ["vacation"]
             },
             "headers": {
                 "Authorization": str(access_token),
@@ -202,29 +203,3 @@ def post_batch(user_client, access_token, batches):
             logger.error(response.json()["error"])
             continue
         check_batch_responses(batch, response.json()["responses"], user_client, access_token)        
-
-
-
-    # # body = {    
-    # #     "requests": [
-    # #         {
-    # #             "url": "/me/events",
-    # #             "method": "GET",
-    # #             "id": "1"
-    # #         }
-    # #     ]
-    # # }
-    
-    # header = {
-    #     'Content-type': 'application/json'
-    # }
-
-        # body = {    
-    #     "requests": [
-    #         {
-    #             "url": "/me/events",
-    #             "method": "GET",
-    #             "id": "1"
-    #         }
-    #     ]
-    # }

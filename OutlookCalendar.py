@@ -15,11 +15,10 @@ import time
 import logging
 from logging import handlers
 import utils
-import sys
-import requests.exceptions
-from http import client
-class OutlookCalendar:
 
+EVENT_STATUS = 'oof' # out of office
+
+class OutlookCalendar:
     def __init__(self):    
         """
         Initializes the members variables by retrieving the netrc and yaml file
@@ -78,11 +77,17 @@ class OutlookCalendar:
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
         
-        try:
-            response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
-        except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
-            utils.send_email(self.user_client, self.get_access_token(), error)
+        # try:
+        #     response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+        # except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
+        #     logging.error(f"An error occured:\n{error}")
+            
+        #     with open("status.log", "w") as f:
+        #         f.write("FAILED")
 
+        #     utils.send_email(self.user_client, self.get_access_token(), error)
+        
+        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
         if (response.status_code == 200):
             return response.json()
         else:
@@ -118,9 +123,6 @@ class OutlookCalendar:
                 self.shared_calendar_id = calendar['id']
                 break
 
-        # start_date = datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S")
-        # end_date = datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S")
-
         start_date = str(start_date.date())
         end_date = str(end_date.date())
         
@@ -130,11 +132,8 @@ class OutlookCalendar:
         }
 
         # If succcesful, the response.json() includes the events that occur within the inverval of start_date and end_date 
-        # This would include events that:
-        # start before start_date and end before end_date, 
-        # start before start_date and end after end_date, 
-        # start after start_date and end before end_date, 
-        # start after start_date and end after end_date
+        # Include events that:
+        # start between start_date and end_date (includes start_date)
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
         request = '/me/calendars/' + self.shared_calendar_id +'/events' + '?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
         response = self.user_client.get(request, headers=header)
@@ -164,7 +163,7 @@ class OutlookCalendar:
             net_id = member['scheduleId'].split('@')[0]
     
             for event in member['scheduleItems']:
-                if event['status'] != 'oof': continue
+                if event['status'] != EVENT_STATUS: continue
          
                 simple_events = SimpleEvent.create_event_for_individual_calendars(event, user_start_date, user_end_date, net_id)
                 filtered_events.extend(simple_events)
@@ -242,25 +241,23 @@ def sanitize_input(start_date, end_date):
 def debug():
     print("In debug mode")
     calendar = OutlookCalendar()
-    days_out = timedelta(days=7)
-    start_date = datetime(year=2023, month=5, day=22)
+    days_out = timedelta(days=3)
+    start_date = datetime(year=2023, month=6, day=27)
     end_date = start_date + days_out
     
-    #shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
-    #individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
-    #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
+    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
+    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
 
-    utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
+    #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
 
 def main():
-    calendar = OutlookCalendar()
-
-    # Define Logger
-    path = '~/../home'
+    calendar = OutlookCalendar()    
+    args = process_args()
 
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
-    #rotate_file_handler = handlers.RotatingFileHandler(calendar.logging_file_path, maxBytes=2000000, backupCount=2)
-    rotate_file_handler = handlers.RotatingFileHandler("output_event.log", maxBytes=2000000, backupCount=2)
+    rotate_file_handler = handlers.RotatingFileHandler(calendar.logging_file_path, mode='a', maxBytes=2048, backupCount=2)
+    #rotate_file_handler = handlers.RotatingFileHandler("output_event.log", maxBytes=2000000, backupCount=2)
     rotate_file_handler.setFormatter(fmt=formater)
     rotate_file_handler.setLevel(logging.DEBUG)
 
@@ -268,14 +265,11 @@ def main():
     logger.setLevel(logging.DEBUG)
     logger.addHandler(rotate_file_handler)
 
-    # python3 OutlookCalendar.py [start date] [end date]
-    # date format: YYYY-MM-DD
-    args = process_args()
-    #print(args)
-
-    #debug()
-
-    #start_date, end_date = sanitize_input(args)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.ERROR)
+    stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
+    logger.addHandler(stream_handler)
+    
     start_date = None
     end_date = None
     days_out = timedelta(days=calendar.days_out)
@@ -284,9 +278,7 @@ def main():
         count = 0
         while True:
             logger.info("Updating shared calendar -> Count : {count}".format(count=count))
-            #print("Updating shared calendar")
-            #print("count: " + str(count))
-
+            
             today = datetime.today()
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
             end_date = start_date + days_out
@@ -302,7 +294,6 @@ def main():
     if args.dump_json:
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
         GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
-
 
     if args.manual_update:
         dates = sanitize_input(args.manual_update[0], args.manual_update[1])
