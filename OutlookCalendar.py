@@ -19,23 +19,19 @@ import utils
 EVENT_STATUS = 'oof' # out of office
 
 class OutlookCalendar:
-    def __init__(self):    
+    def __init__(self, configs):    
         """
         Initializes the members variables by retrieving the netrc and yaml file
         """
 
-        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']
-
-        # Created ENV variable using docker's ENV command in Dockerfile
-        path = os.getenv('AZURE_GRAPH_AUTH')
-        with open(path, 'r') as file:
-            dictionary = yaml.safe_load(file)
-            for attribute in required_attributes:
-                assert attribute in dictionary, f"{attribute} is not provided in microsoft_graph_auth.yaml"
-                setattr(self, attribute, dictionary[attribute])
-                
-            self.device_code_credential = DeviceCodeCredential(client_id = self.client_id, tenant_id = self.tenant_id)
-            self.user_client = GraphClient(credential=self.device_code_credential, scopes=self.scope.split(' '))  
+        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']   
+         
+        for attribute in required_attributes:
+            assert attribute in configs, f"{attribute} is not provided in microsoft_graph_auth.yaml"
+            setattr(self, attribute, configs[attribute])
+        
+        self.device_code_credential = DeviceCodeCredential(client_id = self.client_id, tenant_id = self.tenant_id)
+        self.user_client = GraphClient(credential=self.device_code_credential, scopes=self.scope.split(' '))  
 
     def get_individual_calendars(self, start_date, end_date):
         """
@@ -166,6 +162,7 @@ class OutlookCalendar:
                 if event['status'] != EVENT_STATUS: continue
          
                 simple_events = SimpleEvent.create_event_for_individual_calendars(event, user_start_date, user_end_date, net_id)
+                
                 filtered_events.extend(simple_events)
                 
         return filtered_events
@@ -251,24 +248,9 @@ def debug():
 
     #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
 
-def main():
-    calendar = OutlookCalendar()    
+def main(configs):
+    calendar = OutlookCalendar(configs)    
     args = process_args()
-
-    formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
-    rotate_file_handler = handlers.RotatingFileHandler(calendar.logging_file_path, mode='a', maxBytes=2048, backupCount=2)
-    #rotate_file_handler = handlers.RotatingFileHandler("output_event.log", maxBytes=2000000, backupCount=2)
-    rotate_file_handler.setFormatter(fmt=formater)
-    rotate_file_handler.setLevel(logging.DEBUG)
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(rotate_file_handler)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.ERROR)
-    stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
-    logger.addHandler(stream_handler)
     
     start_date = None
     end_date = None
@@ -304,5 +286,22 @@ def main():
         SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
 
 if __name__ == '__main__':
-    main()
+    configs = utils.retrieve_from_yaml()
+    
+    formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
+    rotate_file_handler = handlers.RotatingFileHandler(configs['logging_file_path'], mode='a', maxBytes=2048, backupCount=2)
+    #rotate_file_handler = handlers.RotatingFileHandler("output_event.log", maxBytes=2048, backupCount=2)
+    rotate_file_handler.setFormatter(fmt=formater)
+    rotate_file_handler.setLevel(logging.DEBUG)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(rotate_file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.ERROR)
+    stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
+    logger.addHandler(stream_handler)
+
+    main(configs)
 
