@@ -15,7 +15,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update -y 
 RUN apt-get install ssmtp -y 
-RUN apt-get install vim 
 RUN echo mailhub=smtp-server >> /etc/ssmtp/ssmtp.conf 
 RUN echo FromLineOverride=YES >> /etc/ssmtp/ssmtp.conf 
 RUN apt-get clean
