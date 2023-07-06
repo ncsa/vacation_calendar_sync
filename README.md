@@ -1,4 +1,4 @@
-# outlook_calendar_report_generator
+# Vacation Calendar Sync
 - Generate a report of members are are "away" based on their Outlook Calendar within a start-end timeframe. 
 - Update shared calendar to synchronize with members' calendars with events that are "away". 
 
@@ -14,10 +14,29 @@ group_members :
     'net_id_1' : 'name_1'
     'net_id_2' : 'name_2'
 shared_calendar_name : '...'
+logging_file_path : '...'
+AM_config :
+    start : 540 
+    end : 710
+PM_config :
+    start : 780
+    end : 950
+days_out : 14
+update_interval : 900
 ...
 ```
+Can retrieve `client_id` and `tenant_id` from the Azure App Registration page
 
-Netrc setup (/home/.ssh/netrc)
+`logging_file_path` is the path where log files can be written onto the host machine starting at the root
+
+`AM_config` and `PM_config` has values in minutes. The event starts before the start and ends after the end for AM_config and PM_config
+
+`days_out` indicates the stretch of time that the program will update on the shared calendar relative to the start date
+
+`update_interval` indicates how often the program run in minutes
+
+
+# Netrc setup (`/home/.ssh/netrc`)
 ``` 
 machine OUTLOOK_LOGIN
 login ...
@@ -31,9 +50,7 @@ docker pull phongtran27/outlook_calendar_report_generator
 
 # Build Container 
 ```
-<!-- docker run -it --name outlook_calendar_container --mount type=bind,source=$HOME,dst=/home outlook_calendar_report_generator -->
-
-docker run -it --name ncsa_vacation_calendar_sync --mount type=bind,source=$HOME,dst=/home ghcr.io/ncsa/vacation_calendar_sync	
+docker run -it --name ncsa_vacation_calendar_sync --mount type=bind,source=$HOME,dst=/home ghcr.io/ncsa/vacation_calendar_sync
 ```
 
 
@@ -42,21 +59,22 @@ The commnad below will generate a report to console of events that occurs betwee
 ```
 python3 OutlookCalendar.py [optional flags] [year]-[month]-[day] [year]-[month]-[day]
 
-Example: python3 OutlookCalendar.py -s 2022-10-26 2022-10-29
+Example: python3 OutlookCalendar.py -m 2022-10-26 2022-10-29
+
+Example: python3 OutlookCalendar.py -s
 
 ```
 
-Other optional flags include:
-
-`-r` : Generates the a report of each members' availability occuring between start and end timeframe.
+# optional flags include:
 
 `-s` : Retrieves members' calendar events and synchronize them to the shared calendar
 
 `-d` : Dumps the json data of member's events occuring between the start and end date
 
-`-i` : Indicates whether this is first time running script. If it is, this flag must be used.
+`-m` : Manually update the shared calendar with start and end time with format YYYY-MM-DD
 
 `-h` : Display the help screen
+
 # Notes
 
 The `.netrc` file needs to have the correct permission (`-rw-------`).
