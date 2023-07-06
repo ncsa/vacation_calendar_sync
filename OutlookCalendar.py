@@ -299,7 +299,7 @@ if __name__ == '__main__':
     logger.addHandler(rotate_file_handler)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.ERROR)
+    stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 

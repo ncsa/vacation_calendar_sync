@@ -32,8 +32,8 @@ def update_shared_calendar(individual_calendars, shared_calendar, event_ids, sha
     batches = create_batches_for_adding_events(events_to_add, access_token, shared_calendar_id)
     post_batch(user_client, access_token, batches)
 
-    batches = create_batches_for_deleting_events(events_to_delete, access_token, shared_calendar_id, event_ids)
-    post_batch(user_client, access_token, batches)
+    batches, deleted_event_info = create_batches_for_deleting_events(events_to_delete, access_token, shared_calendar_id, event_ids)
+    post_batch(user_client, access_token, batches, deleted_event_info)
     
 
 def create_tuple(calendar):
@@ -67,6 +67,7 @@ def create_batches_for_deleting_events(events, access_token, calendar_id, event_
         A list of dictionaries (batches)
     """
     batches = []
+    deleted_events_info = []
     
     num_of_batches = math.ceil(len(events) / MAX_REQUESTS_PER_BATCH)
 
@@ -79,6 +80,7 @@ def create_batches_for_deleting_events(events, access_token, calendar_id, event_
     batch_counter = 0
     id_counter = 1
 
+    event_info = {}
     for event in events:
         event_id = event_ids[event[1] + event[2]]
 
@@ -91,14 +93,20 @@ def create_batches_for_deleting_events(events, access_token, calendar_id, event_
             }
         }
 
+        event_info[str(id_counter)] = event
+
         batches[batch_counter]["requests"].append(request)
         id_counter = id_counter + 1
 
         if (id_counter % 21 == 0):
             id_counter = 1
             batch_counter = batch_counter + 1
+            deleted_events_info.append(event_info)
+            event_info = {}
 
-    return batches
+    deleted_events_info.append(event_info)
+    #print(deleted_events_info)
+    return (batches, deleted_events_info)
 
 def create_batches_for_adding_events(events, access_token, calendar_id):
     """
@@ -162,6 +170,9 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
     
     return batches
 
+def check_batch_responses_two(batch, batch_responses):
+    pass
+
 def check_batch_responses(batch, batch_responses, user_client, access_token):
     """
     Check the responses of each request made in the batch
@@ -183,7 +194,33 @@ def check_batch_responses(batch, batch_responses, user_client, access_token):
     if (len(message) != 0):
         utils.send_email(user_client, access_token, message)
 
-def post_batch(user_client, access_token, batches):
+def check_add_response(batch, batch_responses, user_client, access_token):
+    message = ""
+    for response in batch_responses:
+        if response["status"] == 201: # 201 is the response for Created
+            logger.info("Event {subject} on {date} was successfully added".format(subject=response['body']['subject'], date=response['body']['start']['dateTime']))
+        else:
+            id = int(response['id'])
+            subject = batch['requests'][id - 1]['body']['subject']
+            date = batch['requests'][id - 1]['body']['start']['dateTime']
+            logger.error("Event {subject} on {date} was unccessfully added".format(subject=subject, date=date))
+            logger.error("Error: {error}".format(error=response['body']['error']))
+            message = message + "Event {subject} on {date} was unccessfully added\n".format(subject=subject, date=date)
+    
+    if (len(message) != 0):
+        utils.send_email(user_client, access_token, message)
+
+def check_deleted_response(batch, batch_responses, user_client, access_token, info):
+    for response in batch_responses:
+        id = response["id"]
+        event = info[id]
+        if response["status"] == 204:
+            logger.info(f"Event {event[1]} on {event[2]} was succesfully deleted")
+        else:
+            logger.info(f"Event {event[1]} on {event[2]} was unsuccesfully deleted")
+    
+
+def post_batch(user_client, access_token, batches, info=None):
     """
     Create the batches for events being deleted from the shared_calendar using the format indicated by the Microsoft Graph API for batch
 
@@ -195,11 +232,19 @@ def post_batch(user_client, access_token, batches):
     header = {
         'Content-type': 'application/json'
     }
-    for batch in batches:
+    #counter = 0
+    for count, batch in enumerate(batches):
         response = user_client.post(endpoint,data=json.dumps(batch), headers=header)
         if response.status_code == 400:
             message = "Unable to post batch \n" + str(response.json()["error"])
             utils.send_email(user_client, access_token, message)
             logger.error(response.json()["error"])
+            #counter = counter + 1
             continue
-        check_batch_responses(batch, response.json()["responses"], user_client, access_token)        
+
+        if info:
+            check_deleted_response(batch, response.json()["responses"], user_client, access_token, info[count])
+        else:
+            check_add_response(batch, response.json()["responses"], user_client, access_token)
+        #check_batch_responses(batch, response.json()["responses"], user_client, access_token)    
+        #counter = counter + 1
