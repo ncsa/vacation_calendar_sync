@@ -65,7 +65,7 @@ Example: python3 OutlookCalendar.py -s
 
 ```
 
-# optional flags include:
+# Optional flags include:
 
 `-s` : Retrieves members' calendar events and synchronize them to the shared calendar
 
