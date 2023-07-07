@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from http import client
 import json
 from azure.identity import DeviceCodeCredential
 from msgraph.core import GraphClient
@@ -15,6 +16,8 @@ import time
 import logging
 from logging import handlers
 import utils
+import requests
+
 
 EVENT_STATUS = 'oof' # out of office
 
@@ -73,17 +76,17 @@ class OutlookCalendar:
         # start after start_date and end after end_date
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
         
-        # try:
-        #     response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
-        # except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
-        #     logging.error(f"An error occured:\n{error}")
+        try:
+            response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+        except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
+            logging.error(f"An error occured:\n{error}")
             
-        #     with open("status.log", "w") as f:
-        #         f.write("FAILED")
+            with open("status.log", "w") as f:
+                f.write("client.RemoteDisconnected error has occured")
 
-        #     utils.send_email(self.user_client, self.get_access_token(), error)
+            #utils.send_email(self.user_client, self.get_access_token(), error)
         
-        response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+        #response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
         if (response.status_code == 200):
             return response.json()
         else:
@@ -187,7 +190,7 @@ class OutlookCalendar:
     
             if event['showAs'] != 'free': continue
             
-            simple_event = SimpleEvent.create_event_for_shared_calendar(event)
+            simple_event = SimpleEvent.create_event_for_shared_calendar(event, list(self.group_members.keys()))
             # Only valid events are returned as a simpleEvent object
             if simple_event == None: continue
             
@@ -289,7 +292,7 @@ if __name__ == '__main__':
     configs = utils.retrieve_from_yaml()
     
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
-    rotate_file_handler = handlers.RotatingFileHandler(configs['logging_file_path'], mode='a', maxBytes=2048, backupCount=2)
+    rotate_file_handler = handlers.RotatingFileHandler(configs['logging_file_path'], mode='a', maxBytes=2000000, backupCount=2)
     #rotate_file_handler = handlers.RotatingFileHandler("output_event.log", maxBytes=2048, backupCount=2)
     rotate_file_handler.setFormatter(fmt=formater)
     rotate_file_handler.setLevel(logging.DEBUG)

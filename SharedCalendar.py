@@ -203,9 +203,9 @@ def check_add_response(batch, batch_responses, user_client, access_token):
             id = int(response['id'])
             subject = batch['requests'][id - 1]['body']['subject']
             date = batch['requests'][id - 1]['body']['start']['dateTime']
-            logger.error("Event {subject} on {date} was unccessfully added".format(subject=subject, date=date))
-            logger.error("Error: {error}".format(error=response['body']['error']))
-            message = message + "Event {subject} on {date} was unccessfully added\n".format(subject=subject, date=date)
+            logger.error(f"Event {subject} on {date} was unccessfully added")
+            logger.error("Error: {response['body']['error']}")
+            message = message + f"Event {subject} on {date} was unccessfully added\n"
     
     if (len(message) != 0):
         utils.send_email(user_client, access_token, message)
@@ -218,6 +218,7 @@ def check_deleted_response(batch, batch_responses, user_client, access_token, in
             logger.info(f"Event {event[1]} on {event[2]} was succesfully deleted")
         else:
             logger.info(f"Event {event[1]} on {event[2]} was unsuccesfully deleted")
+            logger.error(f"Error: {response['body']['error']}")
     
 
 def post_batch(user_client, access_token, batches, info=None):
