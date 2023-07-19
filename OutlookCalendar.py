@@ -19,6 +19,7 @@ import utils
 import requests
 import sys
 import azure
+from msal import PublicClientApplication
 
 
 EVENT_STATUS = 'oof' # out of office
@@ -29,16 +30,17 @@ class OutlookCalendar:
         Initializes the members variables by retrieving the netrc and yaml file
         """
 
-        required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']   
+        required_attributes = ['client_id', 'tenant_id', 'scopes', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']   
          
         for attribute in required_attributes:
             assert attribute in configs, f"{attribute} is not provided in microsoft_graph_auth.yaml"
             setattr(self, attribute, configs[attribute])
         
-        self.device_code_credential = DeviceCodeCredential(client_id = self.client_id, tenant_id = self.tenant_id)
-        self.user_client = GraphClient(credential=self.device_code_credential, scopes=self.scope.split(' '))  
+        #self.device_code_credential = DeviceCodeCredential(client_id = self.client_id, tenant_id = self.tenant_id)
+        #self.user_client = GraphClient(credential=self.device_code_credential, scopes=self.scope.split(' '))  
+        self.app = PublicClientApplication(client_id=self.client_id, authority=f"https://login.microsoftonline.com/{self.tenant_id}")
 
-    def get_individual_calendars(self, start_date, end_date):
+    def get_individual_calendars(self, start_date, end_date, access_token):
         """
         Retrieves and returns a json object of individuals'calendar events
           that are within/overlap between the start_date and end_date
@@ -51,7 +53,7 @@ class OutlookCalendar:
             json: json object of the events within/overlap between the start and end date
         """
         
-        access_token = self.get_access_token()
+        #access_token = utils.acquire_access_token(self.app, self.scopes)
 
         header = {
             #'Authorization': str(self.device_code_credential.get_token(self.scope)), # Retrieves the access token
@@ -59,8 +61,6 @@ class OutlookCalendar:
             'Content-Type': "application/json",
             'Prefer': "outlook.timezone=\"Central Standard Time\""
         }
-        
-        
         
         payload = {        
             "schedules": self.group_members, # List of the net_ids of each individual listed in the yaml file
@@ -84,24 +84,28 @@ class OutlookCalendar:
         # The exception is if the event start on the end_date. That event will not be included in the response.json()
         
         try:
-            response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+            endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
+            #response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
+            response = requests.post(endpoint, data=json.dumps(payload),headers= header)
         except Exception as error:
             logging.error(f"An error occured:\n{error}")
             
             with open("status.log", "w") as f:
-                f.write(error)
+                f.write("An Exception has occured")
 
 
             #utils.send_email(self.user_client, self.get_access_token(), error)
         
+        print(response.json())
+        
         #response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
-        if (response.status_code == 200):
-            return response.json()
-        else:
-            utils.send_email(self.user_client, self.get_access_token(), "Unable to retrieve individual calendars")
-            raise Exception(response.json())
+        # if (response.status_code == 200):
+        #     return response.json()
+        # else:
+        #     utils.send_email(self.user_client, utils.acquire_access_token(self.app, self.scopes), "Unable to retrieve individual calendars")
+        #     raise Exception(response.json())
 
-    def get_shared_calendar(self, start_date, end_date):
+    def get_shared_calendar(self, start_date, end_date, access_token):
         """
         Retrieves and returns a json object of the shared calendar events
           that are within/overlap between the start_date and end_date
@@ -116,7 +120,7 @@ class OutlookCalendar:
         """
 
         #access_token = self.device_code_credential.get_token(self.scope)
-        access_token = self.get_access_token()
+        #access_token = utils.acquire_access_token(self.app, self.scopes)
  
         header = {
             'Authorization': str(access_token),
@@ -149,7 +153,7 @@ class OutlookCalendar:
         if (response.status_code == 200):
             return response.json()
         else:
-            utils.send_email(self.user_client, self.get_access_token(), "Unable to retrieve shared calendar")
+            utils.send_email(self.user_client, access_token, "Unable to retrieve shared calendar")
             raise Exception(response.json())
 
 
@@ -218,7 +222,7 @@ class OutlookCalendar:
             access_token = self.device_code_credential.get_token(self.scope)
         except azure.core.exceptions.ClientAuthenticationError as error:
             logger.error("Need to authenticate with Microsoft Graph")
-            logger.error(error)
+            logger.error("An Exception has occured")
             sys.exit(1)
         
         return access_token
@@ -263,8 +267,19 @@ def debug(configs):
     start_date = datetime(year=2023, month=7, day=17)
     end_date = start_date + days_out
     
-    individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
-    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    
+    count = 0
+    
+    while count <= 5:
+        access_token = utils.acquire_access_token(calendar.app, calendar.scopes)
+        print(count)
+        individual_calendars =  calendar.get_individual_calendars(start_date, end_date, access_token)
+        shared_calendar = calendar.get_shared_calendar(start_date, end_date, access_token)
+        print("""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""")
+        time.sleep(180)
+    
+    #individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
+    #shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
     #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
 
     #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
@@ -280,6 +295,7 @@ def main(configs):
     if args.update_shared_calendar:
         count = 0
         while True:
+            access_token = utils.acquire_access_token(calendar.app, calendar.scopes)
             logger.info("Updating shared calendar -> Count : {count}".format(count=count))
             
             today = datetime.today()
@@ -289,7 +305,7 @@ def main(configs):
             individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
             shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
             
-            SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+            SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, access_token, calendar.user_client)
 
             count = count + 1
             time.sleep(calendar.update_interval)
@@ -304,7 +320,7 @@ def main(configs):
         end_date = dates[1]
         individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
-        SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar.get_access_token(), calendar.user_client)
+        SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, access_token, calendar.user_client)
 
 if __name__ == '__main__':
     configs = utils.retrieve_from_yaml()
@@ -324,6 +340,6 @@ if __name__ == '__main__':
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 
-    main(configs)
-    #debug(configs)
+    #main(configs)
+    debug(configs)
 
