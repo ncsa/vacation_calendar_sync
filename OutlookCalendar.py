@@ -17,6 +17,8 @@ import logging
 from logging import handlers
 import utils
 import requests
+import sys
+import azure
 
 
 EVENT_STATUS = 'oof' # out of office
@@ -48,15 +50,20 @@ class OutlookCalendar:
         Returns:
             json: json object of the events within/overlap between the start and end date
         """
+        
+        access_token = self.get_access_token()
 
         header = {
-            'Authorization': str(self.device_code_credential.get_token(self.scope)), # Retrieves the access token
+            #'Authorization': str(self.device_code_credential.get_token(self.scope)), # Retrieves the access token
+            'Authorization': access_token, # Retrieves the access token
             'Content-Type': "application/json",
             'Prefer': "outlook.timezone=\"Central Standard Time\""
         }
         
+        
+        
         payload = {        
-            "schedules": list(self.group_members.keys()), # List of the net_ids of each individual listed in the yaml file
+            "schedules": self.group_members, # List of the net_ids of each individual listed in the yaml file
             "startTime": {
                 "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
                 "timeZone": "Central Standard Time"
@@ -78,11 +85,12 @@ class OutlookCalendar:
         
         try:
             response = self.user_client.post('/me/calendar/getSchedule', data=json.dumps(payload), headers=header)
-        except (requests.exceptions.ConnectionError, client.RemoteDisconnected) as error:
+        except Exception as error:
             logging.error(f"An error occured:\n{error}")
             
             with open("status.log", "w") as f:
-                f.write("client.RemoteDisconnected error has occured")
+                f.write(error)
+
 
             #utils.send_email(self.user_client, self.get_access_token(), error)
         
@@ -107,8 +115,9 @@ class OutlookCalendar:
             json: json object of the events within/overlap between the start and end date
         """
 
-        access_token = self.device_code_credential.get_token(self.scope)
-        
+        #access_token = self.device_code_credential.get_token(self.scope)
+        access_token = self.get_access_token()
+ 
         header = {
             'Authorization': str(access_token),
             'Content-Type': 'application/json'
@@ -160,13 +169,15 @@ class OutlookCalendar:
         filtered_events = []
         for member in calendar['value']:
             net_id = member['scheduleId'].split('@')[0]
-    
-            for event in member['scheduleItems']:
-                if event['status'] != EVENT_STATUS: continue
-         
-                simple_events = SimpleEvent.create_event_for_individual_calendars(event, user_start_date, user_end_date, net_id)
-                
-                filtered_events.extend(simple_events)
+            try:
+                for event in member['scheduleItems']:
+                    if event['status'] != EVENT_STATUS: continue
+            
+                    simple_events = SimpleEvent.create_event_for_individual_calendars(event, user_start_date, user_end_date, net_id)
+                    
+                    filtered_events.extend(simple_events)
+            except KeyError as e:
+                logger.warning(f"Unable to find: " + net_id)
                 
         return filtered_events
     
@@ -190,7 +201,7 @@ class OutlookCalendar:
     
             if event['showAs'] != 'free': continue
             
-            simple_event = SimpleEvent.create_event_for_shared_calendar(event, list(self.group_members.keys()))
+            simple_event = SimpleEvent.create_event_for_shared_calendar(event, self.group_members)
             # Only valid events are returned as a simpleEvent object
             if simple_event == None: continue
             
@@ -203,8 +214,15 @@ class OutlookCalendar:
     
     # @TODO: get rid of this function and call self.device_code_credential.get_token(self.scope) straight up instead
     def get_access_token(self):
-        return self.device_code_credential.get_token(self.scope)
-
+        try:
+            access_token = self.device_code_credential.get_token(self.scope)
+        except azure.core.exceptions.ClientAuthenticationError as error:
+            logger.error("Need to authenticate with Microsoft Graph")
+            logger.error(error)
+            sys.exit(1)
+        
+        return access_token
+        
 def process_args():
         parser = argparse.ArgumentParser(
             prog = 'vacation_calendar_sync',
@@ -238,16 +256,16 @@ def sanitize_input(start_date, end_date):
     assert (end_date - start_date).days >= 0, "start date should start date prior to the end date"    
     return (start_date, end_date)
 
-def debug():
+def debug(configs):
     print("In debug mode")
-    calendar = OutlookCalendar()
+    calendar = OutlookCalendar(configs)
     days_out = timedelta(days=3)
-    start_date = datetime(year=2023, month=6, day=27)
+    start_date = datetime(year=2023, month=7, day=17)
     end_date = start_date + days_out
     
-    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
     individual_calendars = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)   
-    SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
+    shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date))    
+    #SharedCalendar.update_shared_calendar(individual_calendars, shared_calendar_events, event_ids, calendar.shared_calendar_id, calendar , calendar.user_client)
 
     #utils.send_email(calendar.user_client, calendar.get_access_token(), "test")
 
@@ -307,4 +325,5 @@ if __name__ == '__main__':
     logger.addHandler(stream_handler)
 
     main(configs)
+    #debug(configs)
 

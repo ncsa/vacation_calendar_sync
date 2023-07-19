@@ -170,30 +170,6 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
     
     return batches
 
-def check_batch_responses_two(batch, batch_responses):
-    pass
-
-def check_batch_responses(batch, batch_responses, user_client, access_token):
-    """
-    Check the responses of each request made in the batch
-    """
-    message = ""
-    for response in batch_responses:
-        if response["status"] == 201: # 201 is the response for Created
-            logger.info("Event {subject} on {date} was successfully added".format(subject=response['body']['subject'], date=response['body']['start']['dateTime']))
-        elif response["status"] == 204: #201 is the response for No Content 
-            logger.info("Event was Deleted")
-        else:
-            id = int(response['id'])
-            subject = batch['requests'][id - 1]['body']['subject']
-            date = batch['requests'][id - 1]['body']['start']['dateTime']
-            logger.error("Event {subject} on {date} was unccessfully added".format(subject=subject, date=date))
-            logger.error("Error: {error}".format(error=response['body']['error']))
-            message = message + "Event {subject} on {date} was unccessfully added\n".format(subject=subject, date=date)
-    
-    if (len(message) != 0):
-        utils.send_email(user_client, access_token, message)
-
 def check_add_response(batch, batch_responses, user_client, access_token):
     message = ""
     for response in batch_responses:
@@ -247,5 +223,4 @@ def post_batch(user_client, access_token, batches, info=None):
             check_deleted_response(batch, response.json()["responses"], user_client, access_token, info[count])
         else:
             check_add_response(batch, response.json()["responses"], user_client, access_token)
-        #check_batch_responses(batch, response.json()["responses"], user_client, access_token)    
-        #counter = counter + 1
+        
