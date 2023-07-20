@@ -5,26 +5,11 @@
 # Setup
 
 Microsoft Azure Project Config (`/root/vacation_calendar_sync_config.yaml`)
-``` yaml
----
-client_id : '...'
-tenant_id : '...'
-scope : 'user.read calendars.readwrite https://graph.microsoft.com/offline_access'
-group_members : 
-    'net_id_1' : 'name_1'
-    'net_id_2' : 'name_2'
-shared_calendar_name : '...'
-logging_file_path : '...'
-AM_config :
-    start : 540 
-    end : 710
-PM_config :
-    start : 780
-    end : 950
-days_out : 14
-update_interval : 900
-...
-```
+
+Look at [sample_config.yaml](sample_config.yaml)
+
+
+
 Can retrieve `client_id` and `tenant_id` from the Azure App Registration page
 
 `logging_file_path` is the path where log files can be written onto the host machine starting at the root
