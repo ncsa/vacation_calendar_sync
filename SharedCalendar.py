@@ -5,13 +5,14 @@ from datetime import timedelta
 import logging
 import math
 import utils
+import requests
 
 MAX_REQUESTS_PER_BATCH = 20
 
 # This logger is a child of the __main__ logger located in OutlookCalendar.py
 logger = logging.getLogger("__main__." + __name__)
     
-def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, access_token, user_client):
+def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, access_token):
     """
     Update the specified shared calendar by adding and deleting events from it
 
@@ -19,10 +20,10 @@ def update_shared_calendar(individual_calendars, shared_calendar, event_ids, sha
         individual_calendars (list): A list of SimpleEvents from each member's calendars
         shared_calendar: A list of SimpleEvents obtained from the shared calendar
         shared_calendar_id (str): The associated id to the shared calendar
-        access_token (int): The access token for the project
+        access_token (str): The access token for the project
         user_client (GraphClient Object)
     """
-
+    
     individual_events  = set(create_tuple(individual_calendars))
     shared_events = set(create_tuple(shared_calendar))
     
@@ -30,11 +31,10 @@ def update_shared_calendar(individual_calendars, shared_calendar, event_ids, sha
     events_to_delete = shared_events.difference(individual_events)
     
     batches = create_batches_for_adding_events(events_to_add, access_token, shared_calendar_id)
-    post_batch(user_client, access_token, batches)
+    post_batch(access_token, batches)
 
     batches, deleted_event_info = create_batches_for_deleting_events(events_to_delete, access_token, shared_calendar_id, event_ids)
-    post_batch(user_client, access_token, batches, deleted_event_info)
-    
+    post_batch(access_token, batches, deleted_event_info)
 
 def create_tuple(calendar):
     """
@@ -66,6 +66,7 @@ def create_batches_for_deleting_events(events, access_token, calendar_id, event_
     Returns:
         A list of dictionaries (batches)
     """
+
     batches = []
     deleted_events_info = []
     
@@ -133,7 +134,7 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
 
     batch_counter = 0
     id_counter = 1
-
+    
     for event in events:
         start_date_time = event[2] + "T00:00:00.0000000"
         end_date = datetime.datetime.strptime(event[2],"%Y-%m-%d") + timedelta(days=1)
@@ -157,7 +158,7 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
                 "categories": ["vacation"]
             },
             "headers": {
-                "Authorization": str(access_token),
+                "Authorization": access_token,
                 'Content-type': 'application/json'
             }
         }
@@ -170,9 +171,10 @@ def create_batches_for_adding_events(events, access_token, calendar_id):
     
     return batches
 
-def check_add_response(batch, batch_responses, user_client, access_token):
+def check_add_response(batch, batch_responses, access_token):
     message = ""
     for response in batch_responses:
+        
         if response["status"] == 201: # 201 is the response for Created
             logger.info("Event {subject} on {date} was successfully added".format(subject=response['body']['subject'], date=response['body']['start']['dateTime']))
         else:
@@ -183,10 +185,10 @@ def check_add_response(batch, batch_responses, user_client, access_token):
             logger.error("Error: {response['body']['error']}")
             message = message + f"Event {subject} on {date} was unccessfully added\n"
     
-    if (len(message) != 0):
-        utils.send_email(user_client, access_token, message)
+    # if (len(message) != 0):
+    #     utils.send_email(user_client, access_token, message)
 
-def check_deleted_response(batch, batch_responses, user_client, access_token, info):
+def check_deleted_response(batch, batch_responses, access_token, info):
     for response in batch_responses:
         id = response["id"]
         event = info[id]
@@ -197,7 +199,7 @@ def check_deleted_response(batch, batch_responses, user_client, access_token, in
             logger.error(f"Error: {response['body']['error']}")
     
 
-def post_batch(user_client, access_token, batches, info=None):
+def post_batch(access_token, batches, info=None):
     """
     Create the batches for events being deleted from the shared_calendar using the format indicated by the Microsoft Graph API for batch
 
@@ -205,22 +207,26 @@ def post_batch(user_client, access_token, batches, info=None):
         user_client (Graph Client Object) : msgraph.core._graph_client.GraphClient 
         batches (list): A list of dictionaries (batches)
     """
-    endpoint = 'https://graph.microsoft.com/v1.0/$batch'
+    endpoint = "https://graph.microsoft.com/v1.0/$batch"
+    
     header = {
-        'Content-type': 'application/json'
+        'Accept': 'application/json',
+        'Content-type': 'application/json',
+        "Authorization": access_token
     }
-    #counter = 0
+   
     for count, batch in enumerate(batches):
-        response = user_client.post(endpoint,data=json.dumps(batch), headers=header)
-        if response.status_code == 400:
+        response = requests.post(endpoint, data=json.dumps(batch), headers=header)
+        #print(batch)
+        if "error" in response:
             message = "Unable to post batch \n" + str(response.json()["error"])
-            utils.send_email(user_client, access_token, message)
+            #utils.send_email(user_client, access_token, message)
             logger.error(response.json()["error"])
             #counter = counter + 1
             continue
 
         if info:
-            check_deleted_response(batch, response.json()["responses"], user_client, access_token, info[count])
+            check_deleted_response(batch, response.json()["responses"], access_token, info[count])
         else:
-            check_add_response(batch, response.json()["responses"], user_client, access_token)
+            check_add_response(batch, response.json()["responses"], access_token)
         

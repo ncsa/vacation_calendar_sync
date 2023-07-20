@@ -4,17 +4,19 @@ import os
 import subprocess
 from msal import PublicClientApplication
 import os.path
+import requests
 
 SUBJECT = "Vacation Calendar Sync Error Notification"
 
 def init_device_code_flow(app, scopes):
     flow = app.initiate_device_flow(scopes=scopes)
-    print(flow)
+    print(flow["message"])
     result = app.acquire_token_by_device_flow(flow)
     return result
 
 
 def acquire_access_token(app, scopes):
+    # Note access_token usually lasts for a little bit over an hour
     result = None
     accounts = app.get_accounts()
     if accounts:
@@ -28,8 +30,6 @@ def acquire_access_token(app, scopes):
             refresh_token = file.readline()
     
         result = app.acquire_token_by_refresh_token(refresh_token, scopes)
-
-    #print(result)
     
     if not result or "error" in result:
         result = init_device_code_flow(app, scopes)
@@ -69,7 +69,6 @@ def send_mail_using_host(message):
     subprocess.run(f"sendmail {recipient_email} < email.txt", shell=True)
 
         
-
 def send_email(user_client, access_token, message):
 
     toRecipients = []
@@ -108,5 +107,19 @@ def send_email(user_client, access_token, message):
     }
     response = user_client.post(endpoint, data=json.dumps(payload), headers=header)
 
+
+
+
+
+def get_groups_belonging_to_user(access_token):
+    endpoint = "https://graph.microsoft.com/v1.0/me/memberOf"
+    endpoint_three = "https://graph.microsoft.com/v1.0/groups?$filter=displayName eq 'NCSA-Org-ICI'"
+    header = {
+        "Authorization": str(access_token),
+    }
+    
+    endpoint_two = "https://graph.microsoft.com/v1.0/groups?$select=displayName"
+    response = requests.get(endpoint_two, headers=header)
+    print(response.json())
 
 
