@@ -1,0 +1,24 @@
+---
+client_id : ...
+tenant_id : ...
+recipient_email : ...
+scopes : 
+  - Calendars.ReadWrite
+  - Mail.Send 
+  - https://graph.microsoft.com/offline_access
+  - User.Read
+group_members :    
+  - person_1@illinois.edu
+  - person_2@illinois.edu
+  - person_3@illinois.edu
+shared_calendar_name : ...
+logging_file_path : ...
+AM_config : # in minutes
+  start : 540
+  end : 710
+PM_config : # in minutes
+  start : 780
+  end : 950 
+days_out: 14
+update_interval : 900 # in seconds
+...
