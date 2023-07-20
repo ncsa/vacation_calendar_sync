@@ -1,8 +1,8 @@
 ---
-client_id : ...
-tenant_id : ...
+client_id : ... # retrieve from the Azure App Registration page
+tenant_id : ... # retrieve from the Azure App Registration page
 recipient_email : ...
-scopes : 
+scopes : # Should not be changed
   - Calendars.ReadWrite
   - Mail.Send 
   - https://graph.microsoft.com/offline_access
@@ -11,14 +11,22 @@ group_members :
   - person_1@illinois.edu
   - person_2@illinois.edu
   - person_3@illinois.edu
-shared_calendar_name : ...
-logging_file_path : ...
-AM_config : # in minutes
+shared_calendar_name : ... 
+logging_file_path : ... # logging_file_path is the path where log files can be written onto the host machine starting at the root
+AM_config : # AM_config and PM_config has values in minutes. The event starts before the start and ends after the end for AM_config and PM_config
   start : 540
   end : 710
 PM_config : # in minutes
   start : 780
   end : 950 
-days_out: 14
-update_interval : 900 # in seconds
-...
+days_out: 14 # indicates the stretch of time (in days) that the program will update on the shared calendar relative to present day
+update_interval : 900 # update_interval indicates how often the program run in seconds
+
+
+
+
+
+
+
+
+
