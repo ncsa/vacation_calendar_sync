@@ -2,24 +2,11 @@
 - Generate a report of members are are "away" based on their Outlook Calendar within a start-end timeframe. 
 - Update shared calendar to synchronize with members' calendars with events that are "away". 
 
-# Setup
+# Configuration File Setup
 
 Microsoft Azure Project Config (`/root/vacation_calendar_sync_config.yaml`)
 
 Look at [sample_config.yaml](sample_config.yaml)
-
-
-
-Can retrieve `client_id` and `tenant_id` from the Azure App Registration page
-
-`logging_file_path` is the path where log files can be written onto the host machine starting at the root
-
-`AM_config` and `PM_config` has values in minutes. The event starts before the start and ends after the end for AM_config and PM_config
-
-`days_out` indicates the stretch of time that the program will update on the shared calendar relative to the start date
-
-`update_interval` indicates how often the program run in minutes
-
 
 # Netrc setup (`/home/.ssh/netrc`)
 ``` 
@@ -67,4 +54,3 @@ The `.netrc` file needs to have the correct permission (`-rw-------`).
 If not, do: `chmod u+rw,u-x,go-rwx ~/.netrc`
 
 To check: `ls -la ~/.netrc`
-

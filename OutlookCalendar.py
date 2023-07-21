@@ -297,7 +297,7 @@ def main(configs):
     if args.dump_json:
         shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
         GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
-
+ 
     if args.manual_update:
         dates = sanitize_input(args.manual_update[0], args.manual_update[1])
         start_date = dates[0]
