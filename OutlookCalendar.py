@@ -302,8 +302,8 @@ def main(configs):
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
             end_date = start_date + days_out
 
-            individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
-            shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+            individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date, access_token), start_date, end_date)
+            shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date, access_token)) 
             
             SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, access_token)
 
@@ -311,15 +311,16 @@ def main(configs):
             time.sleep(calendar.update_interval)
             
     if args.dump_json:
-        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date, access_token)) 
         GenerateReport(shared_calendar_events, None).dump_calendar_to_json(shared_calendar_events, start_date, end_date)
 
     if args.manual_update:
+        access_token = utils.acquire_access_token(calendar.app, calendar.scopes)
         dates = sanitize_input(args.manual_update[0], args.manual_update[1])
         start_date = dates[0]
         end_date = dates[1]
-        individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date), start_date, end_date)
-        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date)) 
+        individual_calendar_events = calendar.process_individual_calendars(calendar.get_individual_calendars(start_date, end_date, access_token), start_date, end_date)
+        shared_calendar_events, event_ids = calendar.process_shared_calendar(calendar.get_shared_calendar(start_date, end_date, access_token)) 
         SharedCalendar.update_shared_calendar(individual_calendar_events, shared_calendar_events, event_ids, calendar.shared_calendar_id, access_token)
 
 if __name__ == '__main__':
@@ -340,6 +341,6 @@ if __name__ == '__main__':
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 
-    #main(configs)
-    debug(configs)
+    main(configs)
+    #debug(configs)
 

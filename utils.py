@@ -16,6 +16,7 @@ def init_device_code_flow(app, scopes):
 
 
 def acquire_access_token(app, scopes):
+    collection_path = os.getenv('VCS_COLLECTION_PATH')
     # Note access_token usually lasts for a little bit over an hour
     result = None
     accounts = app.get_accounts()
@@ -23,9 +24,9 @@ def acquire_access_token(app, scopes):
         # If accounts exist, that means that it is an iteration, since system rebooting and first time running won't have acccount 
         print("Tokens found in cache")
         result = app.acquire_token_silent(scopes, accounts[0])
-    elif os.path.isfile('token.txt'):
+    elif os.path.isfile(collection_path + '/token.txt'):
         # if the token file exist, then read the refresh token and use it to acquire the access_token 
-        with open("token.txt", "r") as file:
+        with open(collection_path + "/token.txt", "r") as file:
             print("Refresh token found")
             refresh_token = file.readline()
     
@@ -35,7 +36,7 @@ def acquire_access_token(app, scopes):
         result = init_device_code_flow(app, scopes)
 
     if "access_token" in result:
-        with open("token.txt", "w") as file:
+        with open(collection_path + "/token.txt", "w") as file:
             file.write(result["refresh_token"])
             print("Writing new refresh token into token")
         return result["access_token"]
@@ -45,7 +46,7 @@ def acquire_access_token(app, scopes):
         print(result.get("correlation_id"))
 
 
-path = os.getenv('AZURE_GRAPH_AUTH')
+path = os.getenv('VCS_CONFIG')
 with open(path, 'r') as file:
     dictionary = yaml.safe_load(file)
     recipient_email = dictionary['recipient_email']
@@ -54,7 +55,7 @@ def retrieve_from_yaml():
         required_attributes = ['client_id', 'tenant_id', 'scope', 'group_members', 'shared_calendar_name', 'logging_file_path', 'days_out', 'update_interval']
 
         # Created ENV variable using docker's ENV command in Dockerfile
-        path = os.getenv('AZURE_GRAPH_AUTH')
+        path = os.getenv('VCS_CONFIG')
         with open(path, 'r') as file:
             return yaml.safe_load(file)
             # for attribute in required_attributes:

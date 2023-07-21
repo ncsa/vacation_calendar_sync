@@ -4,7 +4,7 @@ from datetime import timedelta
 import yaml 
 import os
 
-path = os.getenv('AZURE_GRAPH_AUTH')
+path = os.getenv('VCS_CONFIG')
 with open(path, 'r') as file:
     dictionary = yaml.safe_load(file)
     AM_config = dictionary['AM_config']

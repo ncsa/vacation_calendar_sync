@@ -17,15 +17,17 @@ RUN apt-get update -y \
 # RUN echo mailhub=smtp-server >> /etc/ssmtp/ssmtp.conf 
 # RUN echo FromLineOverride=YES >> /etc/ssmtp/ssmtp.conf 
 # RUN apt-get clean
+RUN mkdir /home/vacation_calendar_sync
 
 COPY . /vacation_calendar_sync
 WORKDIR /vacation_calendar_sync
 RUN python -m pip install -r /vacation_calendar_sync/requirements.txt
 
-RUN ln -s /home/.netrc /root/.netrc
 # RUN ln -s /home/microsoft_graph_auth.yaml /root/microsoft_graph_auth.yaml
 RUN ln -s /home/vacation_calendar_sync_config.yaml /root/vacation_calendar_sync_config.yaml
-ENV AZURE_GRAPH_AUTH="/root/vacation_calendar_sync_config.yaml"
+
+ENV VCS_CONFIG="/root/vacation_calendar_sync_config.yaml"
+ENV VCS_COLLECTION_PATH="/home/vacation_calendar_sync"
 #RUN mkdir /duo_auth/app
 
 CMD ["bash"]
