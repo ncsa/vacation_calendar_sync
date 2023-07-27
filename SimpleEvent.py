@@ -3,12 +3,12 @@ from datetime import datetime
 from datetime import timedelta 
 import yaml 
 import os
+import utils
 
-path = os.getenv('VCS_CONFIG')
-with open(path, 'r') as file:
-    dictionary = yaml.safe_load(file)
-    AM_config = dictionary['AM_config']
-    PM_config = dictionary['PM_config']
+
+configs = utils.get_configurations()
+AM_config = configs['AM_config']
+PM_config = configs['PM_config']
 
 @dataclass
 class SimpleEvent:
@@ -20,13 +20,13 @@ class SimpleEvent:
     # The list will return 1 item if the event is a one day event 
     # Otherwise, the length of the list is equal to length of the event in terms of days
     @classmethod 
-    def create_event_for_individual_calendars(cls, event, user_start_date, user_end_date, net_id):
+    def create_event_for_individual_calendars(cls, event, start_date, end_date, net_id):
         '''
         Create SimpleEvents and returns a list of SimpleEvents using events from individual calendars
 
         Args:
             event (dict): contains the information about the event
-            user_start_date (datetime): the start date given by the user (today's date)
+            start_date (datetime): the start date given by the user (today's date)
             net_id (str): the netid of owner of the event 
 
         Returns:
@@ -38,7 +38,7 @@ class SimpleEvent:
         end = SimpleEvent.make_datetime(event['end']['dateTime'])
 
         if start.date() == end.date():
-            if SimpleEvent.is_event_valid(user_start_date, user_end_date, start, end):
+            if SimpleEvent.is_event_valid(start_date, end_date, start, end):
                 return [cls(net_id, SimpleEvent.get_event_subject(start, end, net_id), start)]
             return []
 
@@ -63,7 +63,7 @@ class SimpleEvent:
                 new_start = new_start.replace(hour=0,minute=0,second=0)
                 new_end = new_end.replace(hour=23,minute=59,second=59)
 
-            if SimpleEvent.is_event_valid(user_start_date, user_end_date, new_start, new_end):
+            if SimpleEvent.is_event_valid(start_date, end_date, new_start, new_end):
                 events.append(cls(net_id, SimpleEvent.get_event_subject(new_start, new_end, net_id), new_start))
                 
         return events

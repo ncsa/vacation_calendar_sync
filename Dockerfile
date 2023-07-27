@@ -3,20 +3,12 @@ FROM python:3
 ENV TZ=America/Chicago
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# COPY . /outlook_calendar_report_generator
-# WORKDIR /outlook_calendar_report_generator
-# RUN python -m pip install -r /outlook_calendar_report_generator/requirements.txt
-RUN apt-get update -y \
-    && apt-get install ssmtp -y \ 
-    && echo mailhub=smtp-server >> /etc/ssmtp/ssmtp.conf \
-    && echo FromLineOverride=YES >> /etc/ssmtp/ssmtp.conf \
-    && apt-get clean
+# RUN apt-get update -y \
+#     && apt-get install ssmtp -y \ 
+#     && echo mailhub=smtp-server >> /etc/ssmtp/ssmtp.conf \
+#     && echo FromLineOverride=YES >> /etc/ssmtp/ssmtp.conf \
+#     && apt-get clean
 
-# RUN apt-get update -y 
-# RUN apt-get install ssmtp -y 
-# RUN echo mailhub=smtp-server >> /etc/ssmtp/ssmtp.conf 
-# RUN echo FromLineOverride=YES >> /etc/ssmtp/ssmtp.conf 
-# RUN apt-get clean
 RUN mkdir /home/vacation_calendar_sync
 
 COPY . /vacation_calendar_sync
@@ -33,5 +25,7 @@ ENV VCS_COLLECTION_PATH="/home/vacation_calendar_sync"
 CMD ["bash"]
 
 #CMD [ "python3 OutlookCalendar.py -s" ]
+
+ENTRYPOINT [ "./entrypoint.sh" ]
 
 
