@@ -19,7 +19,7 @@ RUN python -m pip install -r /vacation_calendar_sync/requirements.txt
 RUN ln -s /home/vacation_calendar_sync_config.yaml /root/vacation_calendar_sync_config.yaml
 
 ENV VCS_CONFIG="/root/vacation_calendar_sync_config.yaml"
-ENV VCS_COLLECTION_PATH="/home/vacation_calendar_sync"
+#ENV VCS_COLLECTION_PATH="/root/vacation_calendar_sync/"
 #RUN mkdir /duo_auth/app
 
 CMD ["bash"]

@@ -40,8 +40,8 @@ def acquire_access_token(app, scopes):
     Returns:
         str: the access token for the Microsoft Graph API
     """
-
-    collection_path = os.getenv('VCS_COLLECTION_PATH')
+    configs = get_configurations()
+    collection_path = configs['logging_file_path']
     # Note access_token usually lasts for a little bit over an hour
     result = None
     accounts = app.get_accounts()
@@ -49,9 +49,9 @@ def acquire_access_token(app, scopes):
         # If accounts exist, that means that it is an iteration, since system rebooting and first time running won't have acccount 
         logger.debug("Tokens found in cache")
         result = app.acquire_token_silent(scopes, accounts[0])
-    elif os.path.isfile(collection_path + '/token.txt'):
+    elif os.path.isfile(collection_path + 'token.txt'):
         # if the token file exist, then read the refresh token and use it to acquire the access_token 
-        with open(collection_path + "/token.txt", "r") as file:
+        with open(collection_path + "token.txt", "r") as file:
             logger.debug("Refresh token found")
             refresh_token = file.readline()
     
@@ -61,7 +61,7 @@ def acquire_access_token(app, scopes):
         result = init_device_code_flow(app, scopes)
 
     if "access_token" in result:
-        with open(collection_path + "/token.txt", "w") as file:
+        with open(collection_path + "token.txt", "w") as file:
             file.write(result["refresh_token"])
             logger.debug("Writing new refresh token into token file")
         return result["access_token"]
@@ -131,7 +131,7 @@ def send_email(message, access_token):
             
 def get_email_list(group_name, update_interval):
     configs = get_configurations()
-    path_to_email_list = configs['logging_file_path'] + '/email_list.txt'
+    path_to_email_list = configs['logging_file_path'] + 'email_list.txt'
     
     if os.path.isfile(path_to_email_list):
         seconds_since_epoch = os.path.getctime(path_to_email_list)
