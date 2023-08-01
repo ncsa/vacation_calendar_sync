@@ -6,6 +6,7 @@ import requests
 import ldap3
 from datetime import datetime
 import logging
+import time
 
 SUBJECT = "Vacation Calendar Sync Error Notification"
 logger = logging.getLogger("__main__." + __name__)
@@ -62,12 +63,13 @@ def acquire_access_token(app, scopes):
     if "access_token" in result:
         with open(collection_path + "/token.txt", "w") as file:
             file.write(result["refresh_token"])
-            logger.debug("Writing new refresh token into token")
+            logger.debug("Writing new refresh token into token file")
         return result["access_token"]
     else:
         logger.error(result.get("error"))
         logger.error(result.get("error_description"))
         logger.error(result.get("correlation_id"))
+        raise ConnectionError("Unable to retrieve access_token")
 
 def get_configurations():
     """
@@ -123,28 +125,44 @@ def send_email(message, access_token):
 
     if (response.status_code != 202):
         logger.error(response.json())
-        raise Exception()
+        raise ConnectionError("Unable to send email")
 
     # TODO: consider a case if the status code isn't 202
             
-
-def get_email_list(group_name, update_interval, current_email_list = None, last_updated = None):
-    """
-    Retrieves the email list of the members in group_name
-
-    Args:
-        group_name (str): The name of the specified group
-        current_email_list (list): The previously held list of emails
-        last_updated (datetime object): The last time the current_email_list was updated
+def get_email_list(group_name, update_interval):
+    configs = get_configurations()
+    path_to_email_list = configs['logging_file_path'] + '/email_list.txt'
     
-    Returns:
-        A list of emails from the specified group_name
-    """
+    if os.path.isfile(path_to_email_list):
+        seconds_since_epoch = os.path.getctime(path_to_email_list)
+        modified_time = time.localtime(seconds_since_epoch)
+        modified_time = datetime(
+            year=modified_time.tm_year,
+            month=modified_time.tm_mon,
+            day=modified_time.tm_mday,
+            hour=modified_time.tm_hour,
+            minute=modified_time.tm_min,
+            second=modified_time.tm_sec,
+        )
+        if divmod((modified_time - datetime.today()).total_seconds(), 60)[0] < update_interval:
+            with open(path_to_email_list, 'r') as file:
+                email_list = []
+                line = file.readline()
+                while line:
+                    email = line.strip()
+                    email_list.append(email)
+                    line = file.readline()         
+            return email_list
+            
+    # if the file doesn't exist 
+    email_list = get_email_list_from_ldap(group_name)
+    with open(path_to_email_list, 'w') as file:
+        for email in email_list:
+            file.write(f"{email}\n")
     
-    if not last_updated or divmod((last_updated - datetime.today()).total_seconds(), 60)[0] >= update_interval:
-        last_updated = datetime.today()
-        current_email_list = get_email_list_from_ldap(group_name)
-    return (last_updated, current_email_list)
+    #print(f"Email list retrieved from LDAP: {current_email_list}")
+    return email_list
+
     
 def get_email_list_from_ldap(group_name):
     """
@@ -200,4 +218,14 @@ def get_email_list_from_ldap(group_name):
                     logger.warning(f"{email} is not a illinois affiliated email")
             return temp_emails
         
+def connection_error_handler(message, response, access_token):        
+    logger.error(response.json())
+    send_email(message, access_token)
+    raise ConnectionError(message)
+
+
+
+
+#email_list = get_email_list('org_ici', 20)
+#print(email_list)
 

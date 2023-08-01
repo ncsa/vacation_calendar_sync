@@ -4,7 +4,6 @@ import requests
 import logging
 from SimpleEvent import SimpleEvent
 import json
-import OutlookCalendar
 
 EVENT_STATUS = 'oof' # out of office
 
@@ -52,9 +51,9 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
 
     if response.status_code != 200:
         message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
-        logging.error(message)
+        logging.error(response.json())
         utils.send_email(message, access_token)       
-        raise Exception(response.json())
+        raise ConnectionError(message)
 
     return response.json()
 

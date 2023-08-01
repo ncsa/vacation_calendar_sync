@@ -10,6 +10,7 @@ from logging import handlers
 import utils
 from msal import PublicClientApplication
 import IndividualCalendar
+import sys
 #from GenerateReport import GenerateReport
         
 def process_args():
@@ -20,7 +21,7 @@ def process_args():
             epilog = 
                 '''
 Program is controlled using the following environment variables:
-    AZURE_GRAPH_AUTH
+    VCS_CONFIG
         path to the yaml configuration file          
                 ''')
 
@@ -44,13 +45,13 @@ def sanitize_input(start_date, end_date):
     end_date = datetime.strptime(end_date,"%Y-%m-%d")
 
     # Check whether start date occurs before end_date
-    assert (end_date - start_date).days >= 0, "start date should start date prior to the end date"    
+    if (end_date - start_date).days < 0:
+        raise ValueError('start date should start prior to the end date')
+    
     return (start_date, end_date)
 
 def debug(configs):
-    #def __init__(self, client_id, tenant_id, scopes, group_members, shared_calendar_name, days_out, update_interval):    
     print("In debug mode")
-    #calendar = OutlookCalendar(configs['client_id'], configs['tenant_id'], configs['scopes'], configs['group_name'], configs['shared_calendar_name'], configs['days_out'], configs['update_interval'])    
     days_out = timedelta(days=14)
     start_date = datetime(year=2023, month=7, day=24)
     end_date = start_date + days_out
@@ -93,9 +94,8 @@ def main(configs):
 
     count = 0
     while True:
-        logger.info("Updating shared calendar -> Count : {count}".format(count=count))
-        
         if args.update_shared_calendar:
+            logger.info(f"Updating shared calendar -> count: {count}") 
             today = datetime.today()
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
             end_date = start_date + days_out
@@ -105,7 +105,7 @@ def main(configs):
             end_date = dates[1]
 
         # Retrieve the group member emails 
-        last_updated_list, group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'], group_members, last_updated_list)
+        group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
 
         # Get access token
         access_token = utils.acquire_access_token(app, configs['scopes'])
