@@ -10,7 +10,7 @@ from logging import handlers
 import utils
 from msal import PublicClientApplication
 import IndividualCalendar
-import sys
+
 #from GenerateReport import GenerateReport
         
 def process_args():
@@ -68,7 +68,8 @@ def debug(configs):
     # #print(f"access_token: {access_token}")
 
     # # Retrieve the individual calendar and process it 
-    # individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
+    group_members = []
+    individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
     # individual_calendars_events = IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date) 
 
     # # Retrieve the shared calendar and process it 
@@ -100,6 +101,7 @@ def main(configs):
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
             end_date = start_date + days_out
         elif args.manual_update:
+            logger.info(f"Running manually")
             dates = sanitize_input(args.manual_update[0], args.manual_update[1])
             start_date = dates[0]
             end_date = dates[1]

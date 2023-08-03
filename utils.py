@@ -219,8 +219,8 @@ def get_email_list_from_ldap(group_name):
             return temp_emails
         
 def connection_error_handler(message, response, access_token):        
-    logger.error(response.json())
     send_email(message, access_token)
+    logger.error(response.json())
     raise ConnectionError(message)
 
 

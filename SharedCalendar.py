@@ -35,8 +35,8 @@ def get_shared_calendar_id(shared_calendar_name, access_token):
     
     if response.status_code != 200:
         message = f"Unable to connect to the {endpoint} endpoint to retrieve {shared_calendar_name}"
-        logger.error(response.json())
         utils.send_email(message, access_token)
+        logger.error(response.json())
         raise ConnectionError(message)
 
     # Loop through all the calendars available to the user, and find the one indicated in the yaml file and retrieve its calendar ID
@@ -45,8 +45,8 @@ def get_shared_calendar_id(shared_calendar_name, access_token):
             return calendar['id']
     
     message = f"{shared_calendar_name} was not found"
-    logger.error(response.json())
     utils.send_email(message, access_token)
+    logger.error(response.json())
     raise KeyError(message)
 
 def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
@@ -83,8 +83,8 @@ def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
 
     if (response.status_code != 200):
         message = f'Unable to retrieve shared calendar from {endpoint} endpoint'
-        logging.error(response.json())
         utils.send_email(message)
+        logger.error(response.json())
         raise ConnectionError(message)
 
     return response.json()
@@ -380,8 +380,8 @@ def get_category(access_token, category_name, category_color):
     response = requests.get(endpoint, headers=headers)
     if (response.status_code != 200):
         message = f"Unable to connect to {endpoint} endpoint to retrieve the masterCategories"
-        logger.error(response.json())
         utils.send_email(message, access_token)
+        logger.error(response.json())
         raise ConnectionError(message)
     
     response = response.json()['value']
@@ -421,8 +421,8 @@ def create_category(access_token, category_name, category_color):
 
     if response.status_code != 201:
         message = f"Unable to create {category_name}"
-        logger.error(response.json())
         utils.send_email(message, access_token)
+        logger.error(response.json())
         raise ConnectionError(message)
     #print("category created")
     return category_name
