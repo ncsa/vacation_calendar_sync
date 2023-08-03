@@ -135,7 +135,7 @@ if __name__ == '__main__':
     
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
 
-    rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['logging_file_path']}vcs.log", mode='a', maxBytes=2000000, backupCount=2)
+    rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['vcs_directory']}vcs.log", mode='a', maxBytes=2000000, backupCount=2)
     rotate_file_handler_info .setFormatter(fmt=formater)
     rotate_file_handler_info .setLevel(logging.INFO)
 

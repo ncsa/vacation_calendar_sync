@@ -41,7 +41,7 @@ def acquire_access_token(app, scopes):
         str: the access token for the Microsoft Graph API
     """
     configs = get_configurations()
-    collection_path = configs['logging_file_path']
+    collection_path = configs['vcs_directory']
     # Note access_token usually lasts for a little bit over an hour
     result = None
     accounts = app.get_accounts()
@@ -131,7 +131,7 @@ def send_email(message, access_token):
             
 def get_email_list(group_name, update_interval):
     configs = get_configurations()
-    path_to_email_list = configs['logging_file_path'] + 'email_list.txt'
+    path_to_email_list = configs['vcs_directory'] + 'email_list.txt'
     
     if os.path.isfile(path_to_email_list):
         seconds_since_epoch = os.path.getctime(path_to_email_list)
@@ -144,7 +144,7 @@ def get_email_list(group_name, update_interval):
             minute=modified_time.tm_min,
             second=modified_time.tm_sec,
         )
-        if divmod((modified_time - datetime.today()).total_seconds(), 60)[0] < update_interval:
+        if divmod((datetime.today()- modified_time).total_seconds(), 60)[0] < update_interval:
             with open(path_to_email_list, 'r') as file:
                 email_list = []
                 line = file.readline()

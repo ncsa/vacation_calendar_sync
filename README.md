@@ -54,3 +54,4 @@ The `.netrc` file needs to have the correct permission (`-rw-------`).
 If not, do: `chmod u+rw,u-x,go-rwx ~/.netrc`
 
 To check: `ls -la ~/.netrc`
+
