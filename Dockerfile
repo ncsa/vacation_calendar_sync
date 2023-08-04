@@ -22,7 +22,7 @@ ENV VCS_CONFIG="/root/vacation_calendar_sync_config.yaml"
 #ENV VCS_COLLECTION_PATH="/root/vacation_calendar_sync/"
 #RUN mkdir /duo_auth/app
 
-CMD ["bash"]
+#CMD ["bash"]
 
 #CMD [ "python3 OutlookCalendar.py -s" ]
 

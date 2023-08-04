@@ -36,7 +36,8 @@ def get_shared_calendar_id(shared_calendar_name, access_token):
     if response.status_code != 200:
         message = f"Unable to connect to the {endpoint} endpoint to retrieve {shared_calendar_name}"
         utils.send_email(message, access_token)
-        logger.error(response.json())
+        #logger.error(response.json())
+        logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
 
     # Loop through all the calendars available to the user, and find the one indicated in the yaml file and retrieve its calendar ID
@@ -46,7 +47,8 @@ def get_shared_calendar_id(shared_calendar_name, access_token):
     
     message = f"{shared_calendar_name} was not found"
     utils.send_email(message, access_token)
-    logger.error(response.json())
+    #logger.error(response.json())
+    logger.error(f"response.text: {response.text}")
     raise KeyError(message)
 
 def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
@@ -84,7 +86,8 @@ def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
     if (response.status_code != 200):
         message = f'Unable to retrieve shared calendar from {endpoint} endpoint'
         utils.send_email(message)
-        logger.error(response.json())
+        #logger.error(response.json())
+        logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
 
     return response.json()
@@ -350,7 +353,8 @@ def post_batch(access_token, batches, info=None):
             message = "Unable to post batch \n" + str(response.json()["error"])
             #utils.send_email(user_client, access_token, message)
             logger.warning(message)
-            logger.warning(response.json())
+            logger.warning(f"response.text: {response.text}")
+            #logger.warning(response.json())
             continue
 
         if info:
@@ -381,7 +385,8 @@ def get_category(access_token, category_name, category_color):
     if (response.status_code != 200):
         message = f"Unable to connect to {endpoint} endpoint to retrieve the masterCategories"
         utils.send_email(message, access_token)
-        logger.error(response.json())
+        #logger.error(response.json())
+        logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
     
     response = response.json()['value']
@@ -422,7 +427,8 @@ def create_category(access_token, category_name, category_color):
     if response.status_code != 201:
         message = f"Unable to create {category_name}"
         utils.send_email(message, access_token)
-        logger.error(response.json())
+        #logger.error(response.json())
+        logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
     #print("category created")
     return category_name

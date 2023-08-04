@@ -124,7 +124,8 @@ def send_email(message, access_token):
     response = requests.post(endpoint, data=json.dumps(payload), headers=header)
 
     if (response.status_code != 202):
-        logger.error(response.json())
+        #logger.error(response.json())
+        logger.error(f"response.text: {response.text}")
         raise ConnectionError("Unable to send email")
 
     # TODO: consider a case if the status code isn't 202
