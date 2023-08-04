@@ -8,7 +8,7 @@ Microsoft Azure Project Config (`/root/vacation_calendar_sync_config.yaml`)
 
 Look at [sample_config.yaml](sample_config.yaml)
 
-## Pull Image from DockerHub 
+## Pull Image
 ```
 docker pull ghcr.io/ncsa/vacation_calendar_sync:production
 ```
@@ -50,3 +50,4 @@ Example: python3 OutlookCalendar.py -s
 
 
 
+docker run -d --name ncsa_vcs --mount type=bind,source=$HOME,dst=/home ghcr.io/ncsa/vacation_calendar_sync:1691171323_main_3d18bb5
