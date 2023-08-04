@@ -148,6 +148,6 @@ if __name__ == '__main__':
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 
-    #main(configs)
-    debug(configs)
+    main(configs)
+    #debug(configs)
 
