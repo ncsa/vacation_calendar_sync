@@ -4,6 +4,7 @@ import requests
 import logging
 from SimpleEvent import SimpleEvent
 import json
+import math
 
 EVENT_STATUS = 'oof' # out of office
 
@@ -32,7 +33,7 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
         'Content-Type': "application/json",
         'Prefer': "outlook.timezone=\"Central Standard Time\""
     }
-    
+
     body = {        
         "schedules": group_members, # List of the net_ids of each individual listed in the yaml file
         "startTime": {
@@ -50,10 +51,17 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
     response = requests.post(endpoint, data=json.dumps(body),headers= header) 
 
     if response.status_code != 200:
+        logger.error(f"status code: {response.status_code}")
+        logger.error(f"start date: {start_date}")
+        logger.error(f"end date: {end_date}")
+        logger.error(f"group members: {group_members}")
+        logger.error(f"access_token: {access_token}")
+        logger.error(f"response header: {response.headers}")
+        logger.error(f"response header type: {type(response.headers)}")
         message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
         utils.send_email(message, access_token)  
         #logger.error(response.json())
-        logger.error(f"response.text: {response.text}")
+        logger.error(f"response.text: \"{response.text}\"")
         raise ConnectionError(message)
 
     return response.json()

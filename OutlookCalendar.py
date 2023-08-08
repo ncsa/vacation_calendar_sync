@@ -10,7 +10,7 @@ from logging import handlers
 import utils
 from msal import PublicClientApplication
 import IndividualCalendar
-
+import math
 #from GenerateReport import GenerateReport
         
 def process_args():
@@ -113,8 +113,21 @@ def main(configs):
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
         # Retrieve the individual calendar and process it 
-        individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
-        individual_calendars_events = IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date) 
+        multiplier = math.floor(len(group_members) / 10)
+
+        individual_calendars_events = []
+        for i in range(0, multiplier + 1):
+            start = i * 10
+            end = start + 10
+            if end > len(group_members):
+                end = len(group_members)
+            
+            logger.debug(f"start: {start}")
+            logger.debug(f"end: {end}")
+            logger.debug(f"group members ({i}): {group_members[start:end]}")
+        
+            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
+            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
 
         # Retrieve the shared calendar and process it 
         shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
