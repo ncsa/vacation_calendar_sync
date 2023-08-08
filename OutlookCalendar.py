@@ -122,9 +122,9 @@ def main(configs):
             if end > len(group_members):
                 end = len(group_members)
             
-            logger.debug(f"start: {start}")
-            logger.debug(f"end: {end}")
-            logger.debug(f"group members ({i}): {group_members[start:end]}")
+            logger.info(f"start: {start}")
+            logger.info(f"end: {end}")
+            logger.info(f"group members ({i}): {group_members[start:end]}")
         
             individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
             individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
