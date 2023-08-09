@@ -66,6 +66,77 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
 
     return response.json()
 
+def get_individual_calendars_using_batch(start_date, end_date, group_members, access_token):
+    #endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
+    endpoint = "/me/calendar/getSchedule"
+    batch = {
+        "requests": []
+    }
+    multiplier = math.floor(len(group_members) / 10)
+
+    for i in range(0, multiplier + 1):
+        start = i * 10
+        end = start + 10
+        if end > len(group_members):
+            end = len(group_members)
+        
+        request = {
+            "id": str(i + 1),
+            "url": endpoint,
+            "method": "POST", # This could be different for for the delete function
+            "body": {        
+                "schedules": group_members[start:end], # List of the net_ids of each individual listed in the yaml file
+                "startTime": {
+                    "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
+                    "timeZone": "Central Standard Time"
+                },
+                "endTime": {
+                    "dateTime": datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S"),
+                    "timeZone": "Central Standard Time"
+                },
+                "availabilityViewInterval": 1440 # Duration of an event represented in minutes
+            },
+            "headers": {
+                'Authorization': access_token, 
+                'Content-Type': "application/json",
+                'Prefer': "outlook.timezone=\"Central Standard Time\""
+            }
+        }
+        batch["requests"].append(request) 
+
+    endpoint = "https://graph.microsoft.com/v1.0/$batch"
+
+    header = {
+        'Accept': 'application/json',
+        'Content-type': 'application/json',
+        "Authorization": access_token
+    }
+
+    response = requests.post(endpoint, data=json.dumps(batch), headers=header)
+    
+    if response.status_code != 200:
+        message = "Unable to make batch post request"
+        #utils.send_email(user_client, access_token, message)
+        utils.send_email(message, access_token)  
+        logger.error(message)
+        logger.error(f"response.text: {response.text}")
+        #logger.warning(response.json())
+        raise ConnectionError(message)
+
+    list_of_responses = []
+    for individual_response in response.json()["responses"]:
+        if individual_response['status'] != 200: 
+            message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
+            utils.send_email(message, access_token)  
+            logger.error(f"individual_response: {individual_response}")
+            logger.error(f"response header: {individual_response['headers']}")
+            logger.error(f"response['body']: \"{individual_response['body']}\"")
+            raise ConnectionError(message)
+        #print(individual_response['body'])
+        list_of_responses.append(individual_response['body'])
+        
+    return list_of_responses
+
 def process_individual_calendars(calendar, start_date, end_date):
     """
     Creates simple event objects using the the individual calendars 

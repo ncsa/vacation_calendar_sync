@@ -68,9 +68,14 @@ def debug(configs):
     # #print(f"access_token: {access_token}")
 
     # # Retrieve the individual calendar and process it 
-    group_members = []
-    individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
-    # individual_calendars_events = IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date) 
+    # group_members = []
+    group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
+    #individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
+    l = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
+    individual_calendars_events = []
+    for i in l:
+        individual_calendars_events.append(IndividualCalendar.process_individual_calendars(i, start_date, end_date))
+    print(individual_calendars_events)
 
     # # Retrieve the shared calendar and process it 
     # shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
@@ -113,21 +118,24 @@ def main(configs):
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
         # Retrieve the individual calendar and process it 
-        multiplier = math.floor(len(group_members) / 10)
 
-        individual_calendars_events = []
-        for i in range(0, multiplier + 1):
-            start = i * 10
-            end = start + 10
-            if end > len(group_members):
-                end = len(group_members)
+        # individual_calendars_events = []
+        # for i in range(0, multiplier + 1):
+        #     start = i * 10
+        #     end = start + 10
+        #     if end > len(group_members):
+        #         end = len(group_members)
             
-            logger.info(f"start: {start}")
-            logger.info(f"end: {end}")
-            logger.info(f"group members ({i}): {group_members[start:end]}")
+        #     logger.info(f"start: {start}")
+        #     logger.info(f"end: {end}")
+        #     logger.info(f"group members ({i}): {group_members[start:end]}")
         
-            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
-            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
+        #     individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
+        #     individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
+        individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
+        individual_calendars_events = []
+        for calendar in individual_calendars:
+            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
 
         # Retrieve the shared calendar and process it 
         shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
