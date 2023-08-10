@@ -92,7 +92,6 @@ def main(configs):
     start_date = None
     end_date = None
     days_out = timedelta(days=configs['days_out'])
-    last_updated_list = None
     group_members = None
 
     # Define the msal public client
@@ -119,19 +118,6 @@ def main(configs):
 
         # Retrieve the individual calendar and process it 
 
-        # individual_calendars_events = []
-        # for i in range(0, multiplier + 1):
-        #     start = i * 10
-        #     end = start + 10
-        #     if end > len(group_members):
-        #         end = len(group_members)
-            
-        #     logger.info(f"start: {start}")
-        #     logger.info(f"end: {end}")
-        #     logger.info(f"group members ({i}): {group_members[start:end]}")
-        
-        #     individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
-        #     individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
         individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
         individual_calendars_events = []
         for calendar in individual_calendars:
@@ -150,7 +136,6 @@ def main(configs):
         count = count + 1
         time.sleep(configs['update_interval'])
             
-
 if __name__ == '__main__':
     configs = utils.get_configurations()
     
@@ -170,5 +155,5 @@ if __name__ == '__main__':
     logger.addHandler(stream_handler)
 
     main(configs)
-    #debug(configs)
+    
 

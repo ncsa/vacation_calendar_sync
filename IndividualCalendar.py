@@ -67,16 +67,34 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
     return response.json()
 
 def get_individual_calendars_using_batch(start_date, end_date, group_members, access_token):
-    #endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
+    """
+    Retrieves a json object of individuals'calendar events 
+    that are within/overlap between the start_date and end_date. 
+    Note that events that start on end_date is not included
+    This method uses the Microsoft graph batch endpoint to retrieve 
+    individual calendars with each entry retrieving 10 calendars
+
+    Args:
+        start_date (datetime): the start date of timeframe being updated
+        end_date (dateime):  the end date of timeframe being updated
+        access_token (str): the token used make calls to the Microsoft 
+        Graph API as part of the Oauth2 Authorization code flow
+    
+    Returns:
+        json (list): a list of the bodies of the entry responses of
+        events that are within/overlap between the start and end date 
+        with exception of events that starts on end_date
+    """
+    
     endpoint = "/me/calendar/getSchedule"
     batch = {
         "requests": []
     }
-    multiplier = math.floor(len(group_members) / 10)
-
+    grouping = 10
+    multiplier = math.floor(len(group_members) / grouping)
     for i in range(0, multiplier + 1):
-        start = i * 10
-        end = start + 10
+        start = i * grouping
+        end = start + grouping
         if end > len(group_members):
             end = len(group_members)
         
@@ -132,7 +150,6 @@ def get_individual_calendars_using_batch(start_date, end_date, group_members, ac
             logger.error(f"response header: {individual_response['headers']}")
             logger.error(f"response['body']: \"{individual_response['body']}\"")
             raise ConnectionError(message)
-        #print(individual_response['body'])
         list_of_responses.append(individual_response['body'])
         
     return list_of_responses
