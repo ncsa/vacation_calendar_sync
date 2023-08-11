@@ -12,6 +12,7 @@ from msal import PublicClientApplication
 import IndividualCalendar
 import math
 #from GenerateReport import GenerateReport
+import GenerateReport
         
 def process_args():
         parser = argparse.ArgumentParser(
@@ -26,6 +27,7 @@ Program is controlled using the following environment variables:
                 ''')
 
         parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
+        parser.add_argument('-g', '--generate_report', action='store_true', help='Generate a report of the shared calendar')
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
         parser.add_argument('-m', '--manual_update', action='store', nargs=2, help="Manually update the shared calendar with start and end time "+
                             "with format YYYY-MM-DD")
@@ -70,21 +72,26 @@ def debug(configs):
     # # Retrieve the individual calendar and process it 
     # group_members = []
     group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
-    #individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members, access_token)
-    l = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
-    individual_calendars_events = []
-    for i in l:
-        individual_calendars_events.append(IndividualCalendar.process_individual_calendars(i, start_date, end_date))
-    print(individual_calendars_events)
 
-    # # Retrieve the shared calendar and process it 
-    # shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
-    # shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
-    # shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-    
-    # # Update the shared calendar
-    # SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, 
-    #                                       configs['category_name'], configs['category_color'], access_token)
+    individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
+    individual_calendars_events = []
+    for calendar in individual_calendars:
+        individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
+
+    # Retrieve the shared calendar and process it 
+    shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
+    shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
+    shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
+
+    # Update the shared calendar
+    SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
+
+    shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
+    shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
+    shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
+    #print(shared_calendar_events[:10])
+
+    GenerateReport.print_table(GenerateReport.filter_simple_events(shared_calendar_events))
 
 def main(configs):
     args = process_args()
@@ -99,7 +106,7 @@ def main(configs):
 
     count = 0
     while True:
-        if args.update_shared_calendar:
+        if args.update_shared_calendar or args.generate_report:
             logger.info(f"Updating shared calendar -> count: {count}") 
             today = datetime.today()
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
@@ -132,7 +139,13 @@ def main(configs):
         SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
 
         if args.manual_update: break
-
+        if args.generate_report:
+            shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
+            shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
+            shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
+            GenerateReport.print_table(GenerateReport.filter_simple_events(shared_calendar_events))
+            break
+        
         count = count + 1
         time.sleep(configs['update_interval'])
             
@@ -143,17 +156,18 @@ if __name__ == '__main__':
 
     rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['vcs_directory']}vcs.log", mode='a', maxBytes=2000000, backupCount=2)
     rotate_file_handler_info .setFormatter(fmt=formater)
-    rotate_file_handler_info .setLevel(logging.INFO)
+    rotate_file_handler_info .setLevel(logging.DEBUG)
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(rotate_file_handler_info)
 
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
-    logger.addHandler(stream_handler)
+    # stream_handler = logging.StreamHandler()
+    # stream_handler.setLevel(logging.DEBUG)
+    # stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
+    # logger.addHandler(stream_handler)
 
     main(configs)
+    #debug(configs)
     
 
