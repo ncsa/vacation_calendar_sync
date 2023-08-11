@@ -13,9 +13,18 @@ def filter_simple_events(simple_events):
 
 def print_table(sorted_simple_events):
     for key in sorted_simple_events:
-        print("--------------------")
-        print(key.date())
-        print("--------------------")       
-        for event in sorted_simple_events[key]:
-            print(event.subject)
+        line = f"{key.date()},"
+        for count, event in enumerate(sorted_simple_events[key]):
+            event_attributes = event.subject.split(' ')
+            if len(event_attributes) == 2:
+                line = line + event_attributes[0] 
+            else:
+                line = line + event_attributes[0] + " " + event_attributes[2]
+
+            if count < len(sorted_simple_events[key]) - 1:
+                line = line + ","
+        print(line)
+            
+                
+
     
