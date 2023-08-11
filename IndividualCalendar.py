@@ -5,7 +5,7 @@ import logging
 from SimpleEvent import SimpleEvent
 import json
 import math
-
+import time
 EVENT_STATUS = 'oof' # out of office
 
 # This logger is a child of the __main__ logger located in OutlookCalendar.py
@@ -33,38 +33,71 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
         'Content-Type': "application/json",
         'Prefer': "outlook.timezone=\"Central Standard Time\""
     }
+    
+    grouping = 10
+    multiplier = math.floor(len(group_members) / grouping)
+    for i in range(0, multiplier + 1):
+        start = i * grouping
+        end = start + grouping
+        if end > len(group_members):
+            end = len(group_members)
 
-    body = {        
-        "schedules": group_members, # List of the net_ids of each individual listed in the yaml file
-        "startTime": {
-            "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
-            "timeZone": "Central Standard Time"
-        },
-        "endTime": {
-            "dateTime": datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S"),
-            "timeZone": "Central Standard Time"
-        },
-        "availabilityViewInterval": 1440 # Duration of an event represented in minutes
-    }
+        body = {        
+            "schedules": group_members[start, end], # List of the net_ids of each individual listed in the yaml file
+            "startTime": {
+                "dateTime": datetime.strftime(start_date, "%Y-%m-%dT%H:%M:%S"), 
+                "timeZone": "Central Standard Time"
+            },
+            "endTime": {
+                "dateTime": datetime.strftime(end_date, "%Y-%m-%dT%H:%M:%S"),
+                "timeZone": "Central Standard Time"
+            },
+            "availabilityViewInterval": 1440 # Duration of an event represented in minutes
+        }
 
-    endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
-    response = requests.post(endpoint, data=json.dumps(body),headers= header) 
+        endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
+        response = requests.post(endpoint, data=json.dumps(body),headers= header) 
 
-    if response.status_code != 200:
-        logger.error(f"status code: {response.status_code}")
-        logger.error(f"start date: {start_date}")
-        logger.error(f"end date: {end_date}")
-        logger.error(f"group members: {group_members}")
-        logger.error(f"access_token: {access_token}")
-        logger.error(f"response header: {response.headers}")
-        logger.error(f"response header type: {type(response.headers)}")
-        message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
-        utils.send_email(message, access_token)  
-        #logger.error(response.json())
-        logger.error(f"response.text: \"{response.text}\"")
-        raise ConnectionError(message)
+        max_retries = 5
+        retry_count = 0
+        x = 0
+        initial_waiting_time = 30
+        while (retry_count <= max_retries):
+            logger.warning(f"Retrying to connect to getSchedule endpoint {retry_count} and {(2**x) * initial_waiting_time}")
+            time.sleep((2**x) * initial_waiting_time)
+            response = requests.post(endpoint, data=json.dumps(body),headers= header) 
+            retry_count = retry_count + 1
+            x = x + 1
+            if response.status_code == 200:
+                break
+
+        '''
+        1 * 30 = 30
+        2 * 30 = 60
+        4 * 30 = 120
+        8 * 30 = 240
+        16 * 30 = 480
+        32 * 30 = 960
+        '''
+
+
+        if response.status_code != 200:
+            logger.error(f"status code: {response.status_code}")
+            logger.error(f"start date: {start_date}")
+            logger.error(f"end date: {end_date}")
+            logger.error(f"group members: {group_members}")
+            logger.error(f"access_token: {access_token}")
+            logger.error(f"response header: {response.headers}")
+            logger.error(f"response header type: {type(response.headers)}")
+            message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
+            utils.send_email(message, access_token)  
+            #logger.error(response.json())
+            logger.error(f"response.text: \"{response.text}\"")
+            raise ConnectionError(message)
 
     return response.json()
+
+
 
 def get_individual_calendars_using_batch(start_date, end_date, group_members, access_token):
     """
