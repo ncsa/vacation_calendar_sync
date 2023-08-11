@@ -125,10 +125,24 @@ def main(configs):
 
         # Retrieve the individual calendar and process it 
 
-        individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
+        # individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
+        # individual_calendars_events = []
+        # for calendar in individual_calendars:
+        #     individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
+
+        grouping = 10
+        multiplier = math.floor(len(group_members) / grouping)
         individual_calendars_events = []
-        for calendar in individual_calendars:
-            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
+        for i in range(0, multiplier + 1):
+            start = i * grouping
+            end = start + grouping
+            if end > len(group_members):
+                end = len(group_members)
+            
+            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
+            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
+            
+            
 
         # Retrieve the shared calendar and process it 
         shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
@@ -162,10 +176,10 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     logger.addHandler(rotate_file_handler_info)
 
-    # stream_handler = logging.StreamHandler()
-    # stream_handler.setLevel(logging.DEBUG)
-    # stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
-    # logger.addHandler(stream_handler)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
+    logger.addHandler(stream_handler)
 
     main(configs)
     #debug(configs)
