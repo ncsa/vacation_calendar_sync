@@ -10,8 +10,6 @@ from logging import handlers
 import utils
 from msal import PublicClientApplication
 import IndividualCalendar
-import math
-#from GenerateReport import GenerateReport
 import GenerateReport
         
 def process_args():
@@ -52,71 +50,6 @@ def sanitize_input(start_date, end_date):
     
     return (start_date, end_date)
 
-def debug(configs):
-    print("In debug mode")
-    days_out = timedelta(days=14)
-    start_date = datetime(year=2023, month=7, day=24)
-    end_date = start_date + days_out
-    # Need the config
-
-    # # Retrieve the group member emails 
-    # last_updated_list, group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
-    
-    # # Define the msal public client
-    app = PublicClientApplication(client_id=configs['client_id'], authority=f"https://login.microsoftonline.com/{configs['tenant_id']}")
-    
-    # # Get access token
-    access_token = utils.acquire_access_token(app, configs['scopes'])
-    # #print(f"access_token: {access_token}")
-
-    # # Retrieve the individual calendar and process it 
-    # group_members = []
-    group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
-    print(group_members)
-    print(len(group_members))
-    
-    grouping = 10
-    multiplier = math.floor(len(group_members) / grouping)
-    if len(group_members) % 10 != 0:
-        multiplier = multiplier + 1
-
-
-    print(f"multiplier: {multiplier}")
-    individual_calendars_events = []
-    for i in range(0, multiplier):
-        start = i * grouping
-        end = start + grouping
-        if end > len(group_members):
-            end = len(group_members)
-        
-        individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
-        #print(individual_calendars)
-        print(f"start: {start}")
-        print(f"end: {end}")
-        print(group_members[start:end])
-        
-        individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))    
-
-    # individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
-    # individual_calendars_events = []
-    # for calendar in individual_calendars:
-    #     individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
-
-    # Retrieve the shared calendar and process it 
-    # shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
-    # shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
-    # shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-
-    # Update the shared calendar
-    #SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
-
-    # shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
-    # shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
-    # shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-    #print(shared_calendar_events[:10])
-
-    #GenerateReport.print_table(GenerateReport.filter_simple_events(shared_calendar_events))
-
 def main(configs):
     args = process_args()
     
@@ -148,20 +81,13 @@ def main(configs):
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
         # Retrieve the individual calendar and process it 
-        grouping = 10
-        multiplier = math.floor(len(group_members) / grouping)
-        if len(group_members) % grouping != 0:
-            multiplier = multiplier + 1
         individual_calendars_events = []
-        for i in range(0, multiplier):
-            start = i * grouping
-            end = start + grouping
-            if end > len(group_members):
-                end = len(group_members)
-            
-            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group_members[start:end], access_token)
+        grouping = 10
+        
+        for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
+            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group, access_token)
             individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
-            
+                
         # Retrieve the shared calendar and process it 
         shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
         shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
@@ -200,6 +126,3 @@ if __name__ == '__main__':
     logger.addHandler(stream_handler)
 
     main(configs)
-    #debug(configs)
-    
-
