@@ -148,16 +148,12 @@ def main(configs):
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
         # Retrieve the individual calendar and process it 
-
-        # individual_calendars = IndividualCalendar.get_individual_calendars_using_batch(start_date, end_date, group_members, access_token)
-        # individual_calendars_events = []
-        # for calendar in individual_calendars:
-        #     individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(calendar, start_date, end_date))
-
         grouping = 10
         multiplier = math.floor(len(group_members) / grouping)
+        if len(group_members) % grouping != 0:
+            multiplier = multiplier + 1
         individual_calendars_events = []
-        for i in range(0, multiplier + 1):
+        for i in range(0, multiplier):
             start = i * grouping
             end = start + grouping
             if end > len(group_members):
@@ -203,7 +199,7 @@ if __name__ == '__main__':
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 
-    #main(configs)
-    debug(configs)
+    main(configs)
+    #debug(configs)
     
 
