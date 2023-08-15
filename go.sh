@@ -12,7 +12,9 @@ tag=main
 
 #tag=$(latest_tag)
 
-docker run -it --pull always \
+docker run -it 
+--entrypoint bash \
+--pull always \
 --mount type=bind,src=$HOME,dst=/home \
 $REGISTRY/$REPO:$tag 
 

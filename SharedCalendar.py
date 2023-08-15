@@ -392,7 +392,7 @@ def get_category(access_token, category_name, category_color):
     response = response.json()['value']
     
     for category in response:
-        if category['displayName'] == category_name:
+        if category['displayName'].lower() == category_name.lower():
             return category_name
     
     return create_category(access_token, category_name, category_color)

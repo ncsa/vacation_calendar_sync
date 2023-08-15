@@ -26,8 +26,10 @@ Program is controlled using the following environment variables:
                 ''')
 
         parser.add_argument('-s', '--update_shared_calendar', action='store_true', help='Update shared calendar')
-        parser.add_argument('-g', '--generate_report', action='store_true', help='Generate a report of the shared calendar')
+        #parser.add_argument('-g', '--generate_report', action='store_true', help='Generate a report of the shared calendar')
         parser.add_argument('-d', '--dump_json', action='store_true', help='Dump table data to console as json')
+        parser.add_argument('-g', '--generate_report', action='store', nargs=3, help="Generate a report to console of members OUT events: "+
+                            "<group_name> <start_date> <end_date> with format YYYY-MM-DD")
         parser.add_argument('-m', '--manual_update', action='store', nargs=2, help="Manually update the shared calendar with start and end time "+
                             "with format YYYY-MM-DD")
         
@@ -62,9 +64,20 @@ def main(configs):
     # Define the msal public client
     app = PublicClientApplication(client_id=configs['client_id'], authority=f"https://login.microsoftonline.com/{configs['tenant_id']}")
 
+    if args.generate_report:
+            group_name = args.generate_report[0]
+            dates = sanitize_input(args.generate_report[1], args.generate_report[2])
+            start_date = dates[0]
+            end_date = dates[1]
+            access_token = utils.acquire_access_token(app, configs['scopes'])
+            GenerateReport.generate_report_for_specified_group(group_name, start_date, end_date, access_token)
+            return
+
+
     count = 0
     while True:
-        if args.update_shared_calendar or args.generate_report:
+        #if args.update_shared_calendar or args.generate_report:
+        if args.update_shared_calendar:
             logger.info(f"Updating shared calendar -> count: {count}") 
             today = datetime.today()
             start_date = datetime(year=today.year, month=today.month, day=today.day, hour=0,minute=0)
@@ -98,12 +111,12 @@ def main(configs):
         SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
 
         if args.manual_update: break
-        if args.generate_report:
-            shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
-            shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
-            shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-            GenerateReport.print_table(GenerateReport.filter_simple_events(shared_calendar_events))
-            break
+        # if args.generate_report:
+        #     shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
+        #     shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
+        #     shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
+        #     GenerateReport.print_table(shared_calendar_events)
+        #     break
         
         count = count + 1
         time.sleep(configs['update_interval'])

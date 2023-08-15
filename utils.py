@@ -191,14 +191,14 @@ def get_email_list_from_ldap(group_name):
 
     with ldap3.Connection(ldap_server, ldap_user, ldap_password) as conn:
         if not conn.bind():
-            logger.error("Error: Could not bind to LDAP server")
+            raise Exception("Error: Could not bind to LDAP server")
         else:
             for group_name in group_list:
                 search_filter = f"(cn={group_name})"
                 #print("search_filter: " + search_filter)
                 result = conn.search(search_base, search_filter, search_scope, attributes=attributes)
                 if not result:
-                    logger.error(f"Error: Could not find group {group_name}")
+                    raise KeyError(f"Error: Could not find group {group_name}")
                 else:
                     members = [ m.split(',')[0].split('=')[1] for m in conn.entries[0].uniqueMember ]
                 
@@ -206,7 +206,7 @@ def get_email_list_from_ldap(group_name):
             for member in members:    
                 result = conn.search(search_base, f"(uid={member})", search_scope, attributes=attributes)
                 if not result:
-                    logger.error(f"Error: Could not find member with uid {member}")
+                    raise KeyError(f"Error: Could not find member with uid {member}")
                 else:
                     emails.append(str(conn.entries[0].mail))
 

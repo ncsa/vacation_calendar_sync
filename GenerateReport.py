@@ -1,6 +1,7 @@
 from datetime import datetime
 import collections
-
+import utils
+import IndividualCalendar
 def filter_simple_events(simple_events):
     filtered_events = {}
     for event in simple_events:
@@ -11,7 +12,8 @@ def filter_simple_events(simple_events):
   
     return collections.OrderedDict(sorted(filtered_events.items()))
 
-def print_table(sorted_simple_events):
+def print_table(simple_events):
+    sorted_simple_events = filter_simple_events(simple_events)
     for key in sorted_simple_events:
         line = f"{key.date()},"
         for count, event in enumerate(sorted_simple_events[key]):
@@ -25,6 +27,12 @@ def print_table(sorted_simple_events):
                 line = line + ","
         print(line)
             
-                
+def generate_report_for_specified_group(group_name, start_date, end_date, access_token):
+    emails = utils.get_email_list_from_ldap(group_name)
+    calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, emails, access_token)
+    events = IndividualCalendar.process_individual_calendars(calendars, start_date, end_date)
+    print_table(events)
+
+
 
     
