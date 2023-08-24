@@ -87,7 +87,7 @@ class SimpleEvent:
         subject = event['subject']
         event_identifier = subject.split(' ', 1) # (net_id, status)
         # event_identifier[1] in valid_subjects 
-        if (len(event_identifier) == 2 and event_identifier[0] in net_ids and (event_identifier[1] == "OUT" or event_identifier[1] == "OUT AM" or  event_identifier[1] == "OUT PM")):
+        if (len(event_identifier) == 2 and (event_identifier[1] == "OUT" or event_identifier[1] == "OUT AM" or  event_identifier[1] == "OUT PM")):
             simple_event = cls(event_identifier[0], subject, start)
             return simple_event
 

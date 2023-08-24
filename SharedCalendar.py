@@ -263,6 +263,7 @@ def create_batches_for_adding_events(events, access_token, calendar_id, category
             "body": {
                 "subject": event[1],
                 "showAs": "free",
+                "isAllDay": True,
                 "start": {
                     "dateTime": start_date_time,
                     "timeZone": "Central Standard Time"
