@@ -1,14 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import timedelta 
-import yaml 
-import os
 import utils
 
 
 configs = utils.get_configurations()
-AM_config = configs['AM_config']
-PM_config = configs['PM_config']
+# AM_config = configs['AM_config']
+# PM_config = configs['PM_config']
+start_of_workday = configs['start_of_work_day']
+end_of_workday = configs['end_of_work_day']
+start_of_lunch = configs['start_of_lunch']
+end_of_lunch = configs['end_of_lunch']
+duration = configs['duration']
 
 @dataclass
 class SimpleEvent:
@@ -34,6 +37,7 @@ class SimpleEvent:
         '''
 
         events = []
+        # TODO: Change the variable names to make them more specific
         start = SimpleEvent.make_datetime(event['start']['dateTime'])
         end = SimpleEvent.make_datetime(event['end']['dateTime'])
 
@@ -55,6 +59,7 @@ class SimpleEvent:
             new_end = start + timedelta(days=i)
             
             # Adjust the time so that we can create an accurate subject for the split up event
+            # Manipulating the time for the simple event here
             if (i == 0):
                 new_end = new_end.replace(hour=23,minute=59,second=59)
             elif (i == dates_interval.days):
@@ -139,50 +144,6 @@ class SimpleEvent:
         if (user_start <= start and user_end > start) and (SimpleEvent.is_AM(start, end) or SimpleEvent.is_PM(start,end)):
             return True
         return False
-
-    
-
-    @staticmethod    
-    # TODO: Have the user input the time values in the yaml file
-    # is_AM assumes that start and end are on the same day, so it's just checking their times 
-    def is_AM(start, end):
-        '''
-        Verify whether the event duration fit within the AM specification
-
-        Args:
-            start (datetime): A datetime object of the event's start time
-            end (datetime): A datetime object of the event's end time
-
-        Returns: 
-            True if the event is AM
-            False if not
-        '''
-
-        if ((start.hour * 60) + start.minute <= AM_config['start'] and (end.hour * 60) + end.minute >= AM_config['end']):
-            return True
-        return False
-    
-    @staticmethod   
-    # start and end are datetime objects 
-    # TODO: Have the user input the time values in the yaml file
-    # is_PM assumes that start and end are on the same day, so it's just checking their times 
-    def is_PM(start, end):
-        '''
-        Verify whether the event duration fit within the PM specification
-
-        Args:
-            start (datetime): A datetime object of the event's start time
-            end (datetime): A datetime object of the event's end time
-
-        Returns: 
-            True if the event is PM
-            False if not
-        ''' 
-        
-        if ((start.hour * 60) + start.minute <= PM_config['start'] and (end.hour * 60) + end.minute >= PM_config['end']):
-            return True 
-        return False
-    
     
     @staticmethod
     def make_datetime(date):
@@ -203,7 +164,66 @@ class SimpleEvent:
             return datetime.strptime(date.split('.')[0], "%Y-%m-%dT%H:%M:%S")
         else:
             return datetime.strptime(date, "%Y-%m-%d")
+        
+    @staticmethod
+    def is_AM(start, end):
+        '''
+        Verify whether the event duration fit within the AM specification
 
+        Args:
+            start (datetime): A datetime object of the event's start time
+            end (datetime): A datetime object of the event's end time
+
+        Returns: 
+            True if the event is AM
+            False if not
+        '''
+
+        start_time = (start.hour * 60) + start.minute
+        end_time= (end.hour * 60) + end.minute
+
+        if start_time > start_of_lunch or end_time < start_of_workday:
+            return False
+
+        if start_time < start_of_workday:
+            start_time= start_of_workday
+        
+        if end_time > start_of_lunch:
+            end_time = start_of_lunch
+        
+        if end_time - start_time >= duration:
+            return True
+        return False
+
+    @staticmethod
+    def is_PM(start, end):
+        '''
+        Verify whether the event duration fit within the PM specification
+
+        Args:
+            start (datetime): A datetime object of the event's start time
+            end (datetime): A datetime object of the event's end time
+
+        Returns: 
+            True if the event is PM
+            False if not
+        '''
+    
+        start_time = (start.hour * 60) + start.minute
+        end_time= (end.hour * 60) + end.minute
+
+        if start_time > end_of_workday or end_time < end_of_lunch:
+            return False
+
+        if start_time < end_of_lunch:
+            start_time= end_of_lunch
+        
+        if end_time > end_of_workday:
+            end_time = end_of_workday
+
+        if end_time - start_time >= duration:
+            return True
+        return False
 
 # event = {
 # 			'isPrivate': False,
