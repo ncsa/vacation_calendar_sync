@@ -1,9 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
+from datetime import time
 from datetime import timedelta 
 import utils
 
-
+# If a multiday event starts at 12:00 AM on a Monday and ends at 5PM on a Wednesday. Then only two events will be created: 
+# ALL-DAY for Monday and Tuesday, but no events for Wednesday 
+# If a multiday event starts at 11:00 AM on a Monday and ends at 5PM on a Wednesday. Then only three events will be created: 
+# ALL-DAY for Tuesday, OUT AM for Monday and OUT PM for Wednesday 
 configs = utils.get_configurations()
 # AM_config = configs['AM_config']
 # PM_config = configs['PM_config']
@@ -50,20 +54,37 @@ class SimpleEvent:
         # Automatically All Day 
         dates_interval = end - start
         
-        for i in range(dates_interval.days + 1): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
+        add_on = 0
+        remaining_hours = dates_interval.seconds // 3600
+ 
+        if (remaining_hours!= 0):
+            add_on = add_on + 1
+        
+        # if (start.time() >= )
+
+        midnight_start_time  = time(0, 0, 0, 0)   
+
+        if (start.time() != midnight_start_time and end.time() <= start.time()):
+            add_on = add_on + 1        
+
+        for i in range(dates_interval.days + add_on): # The plus accounts for the last day of the multiday event. Even if it's just one All-Day
             
             #new_date = start + timedelta(days=i)
             
             # new_start and new_end are just changing the time
             new_start = start + timedelta(days=i)
-            new_end = start + timedelta(days=i)
+            new_end = end + timedelta(days=i)
+            new_end = new_end.replace(year=new_start.year, month=new_start.month, day=new_start.day)
             
             # Adjust the time so that we can create an accurate subject for the split up event
             # Manipulating the time for the simple event here
+
             if (i == 0):
                 new_end = new_end.replace(hour=23,minute=59,second=59)
-            elif (i == dates_interval.days):
+            elif (i == dates_interval.days + add_on - 1):
                 new_start = new_start.replace(hour=0,minute=0,second=0)
+                if (new_end.time() == midnight_start_time):
+                    new_end = new_end.replace(hour=23,minute=59,second=59)
             else:
                 new_start = new_start.replace(hour=0,minute=0,second=0)
                 new_end = new_end.replace(hour=23,minute=59,second=59)
@@ -186,7 +207,7 @@ class SimpleEvent:
             return False
 
         if start_time < start_of_workday:
-            start_time= start_of_workday
+            start_time = start_of_workday
         
         if end_time > start_of_lunch:
             end_time = start_of_lunch

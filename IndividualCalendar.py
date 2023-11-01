@@ -195,13 +195,15 @@ def process_individual_calendars(calendar, start_date, end_date):
     filtered_events = []
     for member in calendar['value']:
         net_id = member['scheduleId'].split('@')[0]
+        
         try:
             for event in member['scheduleItems']:
                 if event['status'] != EVENT_STATUS: continue
 
                 simple_events = SimpleEvent.create_event_for_individual_calendars(event, start_date, end_date, net_id)
                 filtered_events.extend(simple_events)
+
         except KeyError as e:
             logger.warning(f"Unable to find: " + net_id)
-            
+    
     return filtered_events

@@ -229,4 +229,5 @@ def connection_error_handler(message, response, access_token):
 
 #email_list = get_email_list('org_ici', 20)
 #print(email_list)
+#print(get_email_list_from_ldap('org_ici'))
 
