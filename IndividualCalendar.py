@@ -206,4 +206,5 @@ def process_individual_calendars(calendar, start_date, end_date):
         except KeyError as e:
             logger.warning(f"Unable to find: " + net_id)
     
+    #filtered_events = []
     return filtered_events

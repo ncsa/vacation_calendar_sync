@@ -90,6 +90,8 @@ def main(configs):
 
         # Retrieve the group member emails 
         group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
+        #group_members = ["pttran3@illinois.edu"]
+
     
         # Get access token
         access_token = utils.acquire_access_token(app, configs['scopes'])
@@ -106,7 +108,7 @@ def main(configs):
         shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
         shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
         shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-    
+
         # Update the shared calendar
         SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
 
@@ -122,7 +124,8 @@ if __name__ == '__main__':
     if not path.exists(configs['vcs_directory']):
         raise KeyError(f"{configs['vcs_directory']} does not exist.")
     
-    rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['vcs_directory']}vcs.log", mode='a', maxBytes=2000000, backupCount=2)
+    debug_file = 'vcs_debug'
+    rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['vcs_directory']}{debug_file}.log", mode='a', maxBytes=2000000, backupCount=2)
     rotate_file_handler_info .setFormatter(fmt=formater)
     rotate_file_handler_info .setLevel(logging.DEBUG)
 

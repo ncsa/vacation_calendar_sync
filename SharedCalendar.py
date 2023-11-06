@@ -80,7 +80,7 @@ def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
     # start between start_date and end_date (includes start_date)
     # The exception is if the event start on the end_date. That event will not be included in the response.json()
 
-    endpoint = 'https://graph.microsoft.com/v1.0/me/calendars/' + shared_calendar_id +'/events?$select=subject,body,start,end,showAs&$top=100&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
+    endpoint = 'https://graph.microsoft.com/v1.0/me/calendars/' + shared_calendar_id +'/events?$select=subject,body,start,end,showAs&$top=400&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
     response = requests.get(endpoint, headers=header)
 
     if (response.status_code != 200):
@@ -144,6 +144,8 @@ def update_shared_calendar(individual_calendars, shared_calendar, event_ids, sha
     events_to_add = individual_events.difference(shared_events)
     events_to_delete = shared_events.difference(individual_events)
     
+
+    logger.debug(f"Number of events to be added: {len(events_to_add)}")
     batches = create_batches_for_adding_events(events_to_add, access_token, shared_calendar_id, category_name, category_color)
     post_batch(access_token, batches)
 
