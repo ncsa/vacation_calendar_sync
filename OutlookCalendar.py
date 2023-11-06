@@ -90,7 +90,7 @@ def main(configs):
 
         # Retrieve the group member emails 
         group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
-    
+        
         # Get access token
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
@@ -116,6 +116,7 @@ def main(configs):
         time.sleep(configs['update_interval'])
             
 if __name__ == '__main__':
+    
     configs = utils.get_configurations()
     
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
@@ -135,4 +136,4 @@ if __name__ == '__main__':
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)
 
-    main(configs)
+    #main(configs)
