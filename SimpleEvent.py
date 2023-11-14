@@ -106,13 +106,19 @@ class SimpleEvent:
         temp_net_ids = []
         for net_id in net_ids:
             temp_net_ids.append(net_id.split("@")[0])
+            
 
         net_ids = temp_net_ids
+        
         
         start = SimpleEvent.make_datetime(event['start']['dateTime'])
         subject = event['subject']
         event_identifier = subject.split(' ', 1) # (net_id, status)
-        # event_identifier[1] in valid_subjects 
+        
+        if event_identifier[0] not in net_ids:
+            # this is for manager manual update
+            return
+
         if (len(event_identifier) == 2 and (event_identifier[1] == "OUT" or event_identifier[1] == "OUT AM" or  event_identifier[1] == "OUT PM")):
             simple_event = cls(event_identifier[0], subject, start)
             return simple_event

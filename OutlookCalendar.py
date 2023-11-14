@@ -90,8 +90,6 @@ def main(configs):
 
         # Retrieve the group member emails 
         group_members = utils.get_email_list(configs['group_name'], configs['email_list_update_interval'])
-        #group_members = ["pttran3@illinois.edu"]
-
     
         # Get access token
         access_token = utils.acquire_access_token(app, configs['scopes'])
