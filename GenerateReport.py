@@ -27,8 +27,8 @@ def print_table(simple_events):
                 line = line + ","
         print(line)
             
-def generate_report_for_specified_group(group_name, start_date, end_date, access_token):
-    emails = utils.get_email_list_from_ldap(group_name)
+def generate_report_for_specified_group(emails, start_date, end_date, access_token):
+    # emails = utils.get_email_list_from_ldap(group_name)
     calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, emails, access_token)
     events = IndividualCalendar.process_individual_calendars(calendars, start_date, end_date)
     print_table(events)

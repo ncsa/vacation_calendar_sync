@@ -53,6 +53,21 @@ def sanitize_input(start_date, end_date):
     
     return (start_date, end_date)
 
+def retrieve_and_update_calendars(current_date, end_date, group_members, grouping, access_token):
+    logger.debug(f"{current_date} to {end_date}")
+    individual_calendars_events = []
+    
+    # Create a list of lists in chunks of size grouping
+    for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
+        individual_calendars = IndividualCalendar.get_individual_calendars(current_date, end_date, group, access_token)
+        individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date))
+        
+    # Retrieve the shared calendar and process it 
+    shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
+    shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, current_date, end_date, access_token)
+    shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
+    SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
+
 def main(configs):
     args = process_args()
     
@@ -70,7 +85,15 @@ def main(configs):
             start_date = dates[0]
             end_date = dates[1]
             access_token = utils.acquire_access_token(app, configs['scopes'])
-            GenerateReport.generate_report_for_specified_group(group_name, start_date, end_date, access_token)
+            current_date = start_date
+            emails = utils.get_email_list_from_ldap(group_name)
+            while (current_date + timedelta(14) <= end_date):
+                temp_end_date = current_date + timedelta(14)
+                GenerateReport.generate_report_for_specified_group(emails, current_date, temp_end_date, access_token)
+                current_date = temp_end_date
+            
+            if (current_date < end_date):
+                GenerateReport.generate_report_for_specified_group(emails, current_date, end_date, access_token)
             return
 
 
@@ -95,21 +118,18 @@ def main(configs):
         access_token = utils.acquire_access_token(app, configs['scopes'])
 
         # Retrieve the individual calendar and process it 
-        individual_calendars_events = []
         grouping = 10
         
-        for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
-            individual_calendars = IndividualCalendar.get_individual_calendars(start_date, end_date, group, access_token)
-            individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, start_date, end_date))
-                
-        # Retrieve the shared calendar and process it 
-        shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
-        shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, start_date, end_date, access_token)
-        shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-
-        # Update the shared calendar
-        SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
-
+        current_date = start_date
+        
+        while (current_date + timedelta(14) <= end_date):
+            temp_end_date = current_date + timedelta(14)
+            retrieve_and_update_calendars(current_date, temp_end_date, group_members, grouping, access_token)
+            current_date = temp_end_date
+            
+        if (current_date < end_date):
+            retrieve_and_update_calendars(current_date, end_date, group_members, grouping, access_token)
+        
         if args.manual_update: break
      
         count = count + 1
