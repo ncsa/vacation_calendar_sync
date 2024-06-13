@@ -17,11 +17,12 @@ start_of_lunch = configs['start_of_lunch']
 end_of_lunch = configs['end_of_lunch']
 duration = configs['duration']
 
-@dataclass
+@dataclass(order=True)
 class SimpleEvent:
     net_id : str 
-    subject : str # Our own formatted subject "[netID] [OUT/OUT AM/OUT PM]"
     date : datetime 
+    subject : str # Our own formatted subject "[netID] [OUT/OUT AM/OUT PM]"
+    # date : datetime 
     
     # Returns a list of Simple Events
     # The list will return 1 item if the event is a one day event 
@@ -47,7 +48,7 @@ class SimpleEvent:
 
         if start.date() == end.date():
             if SimpleEvent.is_event_valid(start_date, end_date, start, end):
-                return [cls(net_id, SimpleEvent.get_event_subject(start, end, net_id), start)]
+                return [cls(net_id, start, SimpleEvent.get_event_subject(start, end, net_id))]
             return []
 
         # if an event goes in here, then it's all day because the start date and end date differ by one day so it has to be at least be 1 All Day
@@ -90,7 +91,7 @@ class SimpleEvent:
                 new_end = new_end.replace(hour=23,minute=59,second=59)
 
             if SimpleEvent.is_event_valid(start_date, end_date, new_start, new_end):
-                events.append(cls(net_id, SimpleEvent.get_event_subject(new_start, new_end, net_id), new_start))
+                events.append(cls(net_id, new_start, SimpleEvent.get_event_subject(new_start, new_end, net_id)))
                 
         return events
 
@@ -120,10 +121,16 @@ class SimpleEvent:
             return
 
         if (len(event_identifier) == 2 and (event_identifier[1] == "OUT" or event_identifier[1] == "OUT AM" or  event_identifier[1] == "OUT PM")):
-            simple_event = cls(event_identifier[0], subject, start)
+            simple_event = cls(event_identifier[0], start, subject)
             return simple_event
 
     
+
+    @classmethod
+    def create_all_day_event(cls, net_id, date):
+        return cls(net_id, date, net_id + " OUT")
+
+
     @staticmethod    
     # get_event_subject assumes that start and end are on the same day, so it's just checking their times to create the subject
     def get_event_subject(start, end, net_id):

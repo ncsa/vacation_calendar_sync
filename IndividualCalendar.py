@@ -176,6 +176,37 @@ def get_individual_calendars_using_batch(start_date, end_date, group_members, ac
         
     return list_of_responses
 
+def filter(events):
+    """
+    Removes duplicates in the list of events 
+    
+    Args:
+        events (SimpleEvent list): contains events extracted from individual calendars
+
+    Returns:
+        SimpleEvent list: a filtered list of events
+    """
+
+    filtered_events = []
+    events.sort()
+    event_to_add = events[0]
+
+    for event in events:
+        if event_to_add.net_id == event.net_id and event_to_add.date.date() == event.date.date():
+            event_subject_id = utils.subject_identifier(event.subject)
+            event_to_add_subject_id = utils.subject_identifier(event_to_add.subject)
+            
+            if event_subject_id > event_to_add_subject_id:
+                event_to_add = event
+            elif ("OUT AM" in event.subject and "OUT PM" in event_to_add.subject) or ("OUT PM" in event.subject and "OUT AM" in event_to_add.subject):
+                event_to_add = SimpleEvent.create_all_day_event(event_to_add.net_id, event_to_add.date)
+        else:
+            filtered_events.append(event_to_add)
+            event_to_add = event
+
+    filtered_events.append(event_to_add)
+    return filtered_events
+
 def process_individual_calendars(calendar, start_date, end_date):
     """
     Creates simple event objects using the the individual calendars 
@@ -185,26 +216,22 @@ def process_individual_calendars(calendar, start_date, end_date):
         calendar (json): json object of the events within/overlap between 
         a specified start and end date for indvidual calendars
         start_date (datetime): the start date of timeframe being updated
-        end_date (dateime):  the end date of timeframe being updated
+        end_date (datetime):  the end date of timeframe being updated
         
     Returns: 
         list: A list of SimpleEvent objects
 
     """
 
-    filtered_events = []
+    events = []
     for member in calendar['value']:
         net_id = member['scheduleId'].split('@')[0]
-        
         try:
             for event in member['scheduleItems']:
                 if event['status'] != EVENT_STATUS: continue
-
-                simple_events = SimpleEvent.create_event_for_individual_calendars(event, start_date, end_date, net_id)
-                filtered_events.extend(simple_events)
-
+                events_to_add = SimpleEvent.create_event_for_individual_calendars(event, start_date, end_date, net_id)
+                events.extend(events_to_add)
         except KeyError as e:
             logger.warning(f"Unable to find: " + net_id)
-    
-    #filtered_events = []
-    return filtered_events
+
+    return filter(events)
