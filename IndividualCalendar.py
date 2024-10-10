@@ -186,6 +186,7 @@ def filter(events):
     Returns:
         SimpleEvent list: a filtered list of events
     """
+    if events: return None
 
     filtered_events = []
     events.sort()

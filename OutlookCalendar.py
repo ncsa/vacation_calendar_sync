@@ -60,8 +60,10 @@ def retrieve_and_update_calendars(current_date, end_date, group_members, groupin
     # Create a list of lists in chunks of size grouping
     for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
         individual_calendars = IndividualCalendar.get_individual_calendars(current_date, end_date, group, access_token)
-        individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date))
-        
+        individual_events_block = IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date)
+        if individual_events_block: 
+            individual_calendars_events.extend(individual_events_block)
+
     # Retrieve the shared calendar and process it 
     shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
     shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, current_date, end_date, access_token)
