@@ -12,7 +12,8 @@ import utils
 from msal import PublicClientApplication
 import IndividualCalendar
 import GenerateReport
-        
+import sys 
+
 def process_args():
         parser = argparse.ArgumentParser(
             prog = 'vacation_calendar_sync',
@@ -60,8 +61,10 @@ def retrieve_and_update_calendars(current_date, end_date, group_members, groupin
     # Create a list of lists in chunks of size grouping
     for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
         individual_calendars = IndividualCalendar.get_individual_calendars(current_date, end_date, group, access_token)
-        individual_calendars_events.extend(IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date))
-        
+        individual_events_block = IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date)
+        if individual_events_block: 
+            individual_calendars_events.extend(individual_events_block)
+
     # Retrieve the shared calendar and process it 
     shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
     shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, current_date, end_date, access_token)
@@ -136,6 +139,9 @@ def main(configs):
         time.sleep(configs['update_interval'])
             
 if __name__ == '__main__':
+    # Redirects stdout stderr to out.log
+    sys.stderr = open('out.log', 'w')
+    
     configs = utils.get_configurations()
     
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
@@ -151,7 +157,7 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     logger.addHandler(rotate_file_handler_info)
 
-    stream_handler = logging.StreamHandler()
+    stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(fmt=logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s'))
     logger.addHandler(stream_handler)

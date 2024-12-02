@@ -85,7 +85,8 @@ def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
 
     if (response.status_code != 200):
         message = f'Unable to retrieve shared calendar from {endpoint} endpoint'
-        utils.send_email(message)
+        #utils.send_email(message) BEFORE
+        utils.send_email(message, access_token)
         #logger.error(response.json())
         logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
@@ -304,12 +305,18 @@ def check_add_response(batch, batch_responses, access_token):
         if response["status"] == 201: # 201 is the response for Created
             logger.info("Event {subject} on {date} was successfully added".format(subject=response['body']['subject'], date=response['body']['start']['dateTime']))
         else:
-            id = int(response['id'])
-            subject = batch['requests'][id - 1]['body']['subject']
-            date = batch['requests'][id - 1]['body']['start']['dateTime']
-            logger.warning(f"Event {subject} on {date} was unccessfully added")
-            logger.warning(f"Error: {response['body']['error']}")
-            message = message + f"Event {subject} on {date} was unccessfully added\n"
+            event_id = response.get('id', None)
+            if event_id:
+                event_id = int(event_id)
+                subject = batch['requests'][event_id - 1]['body']['subject']
+                date = batch['requests'][event_id - 1]['body']['start']['dateTime']
+                logger.warning(f"Event {subject} on {date} was unccessfully added")
+            else:
+                logger.warning(f"An error occured")
+
+            err_body = response.get('body', None)
+            if err_body:
+                logger.warning(f"Error: {err_body}")
     
     # if (len(message) != 0):
     #     utils.send_email(user_client, access_token, message)
@@ -330,7 +337,10 @@ def check_deleted_response(batch, batch_responses, access_token, info):
             logger.info(f"Event {event[1]} on {event[2]} was succesfully deleted")
         else:
             logger.warning(f"Event {event[1]} on {event[2]} was unsuccesfully deleted")
-            logger.warning(f"Error: {response['body']['error']}")
+            #logger.warning(f"Error: {response['body']['error']}")
+            err_body = response.get('body', None)
+            if err_body:
+                logger.warning(f"Error: {err_body}")
     
 
 def post_batch(access_token, batches, info=None):
@@ -353,10 +363,13 @@ def post_batch(access_token, batches, info=None):
         response = requests.post(endpoint, data=json.dumps(batch), headers=header)
         #print(batch)
         if response.status_code != 200:
-            message = "Unable to post batch \n" + str(response.json()["error"])
+            response_as_dict = response.json()
+            err_body = response_as_dict.get('error', None)
+            message = f"Unable to post batch: {err_body}\n " 
             #utils.send_email(user_client, access_token, message)
+            utils.send_email(message, access_token)
             logger.warning(message)
-            logger.warning(f"response.text: {response.text}")
+            #logger.warning(f"response.text: {response.text}")
             #logger.warning(response.json())
             continue
 
@@ -435,5 +448,3 @@ def create_category(access_token, category_name, category_color):
         raise ConnectionError(message)
     #print("category created")
     return category_name
-    
-    

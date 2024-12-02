@@ -71,17 +71,10 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
         '''
 
     if response.status_code != 200:
-        logger.error(f"status code: {response.status_code}")
-        logger.error(f"start date: {start_date}")
-        logger.error(f"end date: {end_date}")
-        logger.error(f"group members: {group_members}")
-        logger.error(f"access_token: {access_token}")
-        logger.error(f"response header: {response.headers}")
-        logger.error(f"response header type: {type(response.headers)}")
-        message = 'Unable to retrieve individual calendar from the getSchedule endpoint'
+        message = 'Critical: Unable to retrieve individual calendar from the getSchedule endpoint'
         utils.send_email(message, access_token)  
         #logger.error(response.json())
-        logger.error(f"response.text: \"{response.text}\"")
+        logger.error(f"response: {response}")
         raise ConnectionError(message)
 
     return response.json()
@@ -186,6 +179,8 @@ def filter(events):
     Returns:
         SimpleEvent list: a filtered list of events
     """
+    if not events: 
+        return None
 
     filtered_events = []
     events.sort()
