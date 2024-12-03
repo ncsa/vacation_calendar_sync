@@ -11,6 +11,25 @@ import time
 SUBJECT = "Vacation Calendar Sync Error Notification"
 logger = logging.getLogger("__main__." + __name__)
 
+default_config = {
+    "client_id": None,
+    "tenant_id": None,
+    "recipient_email": None,
+    "scopes": ["Calendars.ReadWrite", "Calendars.ReadWrite.Shared", "Mail.Send", "https://graph.microsoft.com/offline_access"],
+    "group_name": None,
+    "shared_calendar_name": None,
+    "category_name": "Vacation",
+    "category_color": "preset0",
+    "days_out": 30,
+    "update_interval": 900,
+    "email_list_update_interval": 20,
+    "start_of_work_day": 480, # 60 * 8
+    "end_of_work_day": 1020, # 60 * 17
+    "start_of_lunch": 720, # 60 * 12
+    "end_of_lunch": 780, # 60 * 13
+    "duration": 180, # 60 * 3
+}
+
 def init_device_code_flow(app, scopes):
     """
     Start of the Microsoft init device flow process
@@ -40,8 +59,8 @@ def acquire_access_token(app, scopes):
     Returns:
         str: the access token for the Microsoft Graph API
     """
-    configs = get_configurations()
-    collection_path = configs['vcs_directory']
+    
+    collection_path = os.getenv('VCS_LOG')
     # Note access_token usually lasts for a little bit over an hour
     result = None
     accounts = app.get_accounts()
@@ -80,9 +99,19 @@ def get_configurations():
     
     """
     # Created ENV variable using docker's ENV command in Dockerfile
+    # Config file should be placed at /etc/vcs/config
     path = os.getenv('VCS_CONFIG')
+
     with open(path, 'r') as file:
-        return yaml.safe_load(file)
+        config = yaml.safe_load(file)
+    
+    for key in default_config:
+        if key not in config:
+            default_value = default_config[key]
+            if default_value is None:
+                raise KeyError(f"{key} is required")
+            config[key] = default_value
+    return config
         
 def send_email(message, access_token):
     config = get_configurations()
@@ -131,8 +160,7 @@ def send_email(message, access_token):
     # TODO: consider a case if the status code isn't 202
             
 def get_email_list(group_name, update_interval):
-    configs = get_configurations()
-    path_to_email_list = configs['vcs_directory'] + 'email_list.txt'
+    path_to_email_list = os.getenv('VCS_LOG') + 'email_list.txt'
     
     if os.path.isfile(path_to_email_list):
         seconds_since_epoch = os.path.getctime(path_to_email_list)
