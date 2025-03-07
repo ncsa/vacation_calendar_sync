@@ -48,18 +48,16 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
     }
 
     endpoint = "https://graph.microsoft.com/v1.0/me/calendar/getSchedule"
-    response = requests.post(endpoint, data=json.dumps(body),headers= header) 
+    response = requests.post(endpoint, data=json.dumps(body),headers=header) 
 
     max_retries = 5
     retry_count = 0
-    x = 0
     initial_waiting_time = 30
     while (response.status_code != 200 and retry_count <= max_retries):
-        logger.warning(f"Retrying to connect to getSchedule endpoint {retry_count} and {(2**x) * initial_waiting_time}")
-        time.sleep((2**x) * initial_waiting_time)
+        logger.warning(f"Retrying to connect to getSchedule endpoint. Waiting for {(2**retry_count) * initial_waiting_time} seconds")
+        time.sleep((2**retry_count) * initial_waiting_time)
         response = requests.post(endpoint, data=json.dumps(body),headers=header) 
         retry_count = retry_count + 1
-        x = x + 1
 
         '''
         1 * 30 = 30
@@ -73,13 +71,10 @@ def get_individual_calendars(start_date, end_date, group_members, access_token):
     if response.status_code != 200:
         message = 'Critical: Unable to retrieve individual calendar from the getSchedule endpoint'
         utils.send_email(message, access_token)  
-        #logger.error(response.json())
         logger.error(f"response: {response}")
         raise ConnectionError(message)
 
     return response.json()
-
-
 
 def get_individual_calendars_using_batch(start_date, end_date, group_members, access_token):
     """
@@ -214,11 +209,12 @@ def process_individual_calendars(calendar, start_date, end_date):
         end_date (datetime):  the end date of timeframe being updated
         
     Returns: 
-        list: A list of SimpleEvent objects
-
+        tuple[List[SimpleEvents], Set[str]]: A tuple containing A list of SimpleEvent objects
+        and a set of netids who's calendar was not found
     """
 
     events = []
+    missing_calendars = set()
     for member in calendar['value']:
         net_id = member['scheduleId'].split('@')[0]
         try:
@@ -228,5 +224,7 @@ def process_individual_calendars(calendar, start_date, end_date):
                 events.extend(events_to_add)
         except KeyError as e:
             logger.warning(f"Unable to find: " + net_id)
-
-    return filter(events)
+            missing_calendars.add(net_id)
+            
+    filtered_events = filter(events)
+    return (filtered_events, missing_calendars)

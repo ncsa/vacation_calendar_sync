@@ -7,6 +7,7 @@ import math
 import utils
 import requests
 from SimpleEvent import SimpleEvent
+import time
 
 MAX_REQUESTS_PER_BATCH = 20
 
@@ -32,6 +33,16 @@ def get_shared_calendar_id(shared_calendar_name, access_token):
     }
     endpoint = "https://graph.microsoft.com/v1.0/me/calendars"
     response = requests.get(endpoint, headers=header)
+    
+    max_retries = 5
+    retry_count = 0
+    initial_waiting_time = 30 # in seconds
+    
+    while response.status_code != 200 and retry_count <= max_retries:
+        logger.warning(f"Retrying to connect to calendars id endpoint. Waiting for {(2**retry_count) * initial_waiting_time} seconds")
+        time.sleep((2**retry_count) * initial_waiting_time)
+        response = requests.get(endpoint, headers=header)
+        retry_count = retry_count + 1
     
     if response.status_code != 200:
         message = f"Unable to connect to the {endpoint} endpoint to retrieve {shared_calendar_name}"
@@ -82,12 +93,19 @@ def get_shared_calendar(shared_calendar_id, start_date, end_date, access_token):
 
     endpoint = 'https://graph.microsoft.com/v1.0/me/calendars/' + shared_calendar_id +'/events?$select=subject,body,start,end,showAs&$top=400&$filter=start/dateTime ge ' + '\''+ start_date + '\'' + ' and start/dateTime lt ' + '\'' + end_date + '\''    
     response = requests.get(endpoint, headers=header)
-
+    
+    max_retries = 5
+    retry_count = 0
+    initial_waiting_time = 30
+    while response.status_code != 200 and retry_count <= max_retries:
+        logger.warning(f"Retrying to connect to get shared calendars endpoint. Waiting for {(2**retry_count) * initial_waiting_time} seconds")
+        time.sleep((2**retry_count) * initial_waiting_time)
+        response = requests.get(endpoint, headers=header)
+        retry_count = retry_count + 1
+        
     if (response.status_code != 200):
         message = f'Unable to retrieve shared calendar from {endpoint} endpoint'
-        #utils.send_email(message) BEFORE
         utils.send_email(message, access_token)
-        #logger.error(response.json())
         logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
 
@@ -124,20 +142,39 @@ def process_shared_calendar(shared_calendar, group_members):
 
     return (filtered_events, event_ids)
 
-def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, category_name, category_color, access_token):
+def remove_events_with_missing_calendars(shared_calendar, missing_calendars):
+    """
+    Removes SimpleEvent objects from shared_calendar if their corresponding calendar was 
+    not found. It allows us to distinguish when a user actually delete an event vs.
+    when VCS couldn't retrieve their calendar.
+    
+    Args:
+        shared_calendar (list[SimpleEvent]): a list of SimpleEvents obtained from the shared calendar
+        missing_calendars (set[str]): contains netids of calendars that were not found.
+    """
+    res = []
+    for event in shared_calendar:
+        if event.net_id not in missing_calendars:
+            res.append(event)
+    return res
+    
+def update_shared_calendar(individual_calendars, shared_calendar, event_ids, shared_calendar_id, category_name, category_color, missing_calendars, access_token):
     """
     Update the specified shared calendar by adding and deleting events from it
 
     Args:
-        individual_calendars (list): a list of SimpleEvents from each member's calendars
-        shared_calendar (list): a list of SimpleEvents obtained from the shared calendar
-        event_ids (dict): a dictionary containing the ids of the events on the shared calendar
+        individual_calendars (list[SimpleEvents]): a list of SimpleEvents from each member's calendars
+        shared_calendar (list[SimpleEvents]): a list of SimpleEvents obtained from the shared calendar
+        event_ids (dict[str, str]): (net_id + subject) to event_id paring with event_id being the event id of the event
         shared_calendar_id (str): the associated id to the shared calendar
-        category_name: the name of the category for the event
-        category_color: the color of the category for the event
+        category_name (str): the name of the category for the event
+        category_color (str): the color of the category for the event
+        missing_calendars (set[str]): contains netids of calendars that were not found.
         access_token (str): the token used make calls to the Microsoft Graph API \
         as part of the Oauth2 Authorization code flow
     """
+    
+    shared_calendar = remove_events_with_missing_calendars(shared_calendar, missing_calendars)
     
     individual_events  = set(create_tuple(individual_calendars))
     shared_events = set(create_tuple(shared_calendar))
@@ -361,16 +398,12 @@ def post_batch(access_token, batches, info=None):
    
     for count, batch in enumerate(batches):
         response = requests.post(endpoint, data=json.dumps(batch), headers=header)
-        #print(batch)
         if response.status_code != 200:
             response_as_dict = response.json()
             err_body = response_as_dict.get('error', None)
             message = f"Unable to post batch: {err_body}\n " 
-            #utils.send_email(user_client, access_token, message)
             utils.send_email(message, access_token)
             logger.warning(message)
-            #logger.warning(f"response.text: {response.text}")
-            #logger.warning(response.json())
             continue
 
         if info:
@@ -398,10 +431,19 @@ def get_category(access_token, category_name, category_color):
     }
     
     response = requests.get(endpoint, headers=headers)
+    
+    max_retries = 5
+    retry_count = 0
+    initial_waiting_time = 30
+    while response.status_code != 200 and retry_count <= max_retries:
+        logger.warning(f"Retrying to connect to get_category endpoint. Waiting for {(2**retry_count) * initial_waiting_time} seconds")
+        time.sleep((2**retry_count) * initial_waiting_time)
+        response = requests.get(endpoint, headers=headers)
+        retry_count = retry_count + 1
+    
     if (response.status_code != 200):
         message = f"Unable to connect to {endpoint} endpoint to retrieve the masterCategories"
         utils.send_email(message, access_token)
-        #logger.error(response.json())
         logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
     
@@ -439,12 +481,20 @@ def create_category(access_token, category_name, category_color):
     }
 
     response = requests.post(endpoint, data=json.dumps(body), headers=headers)
+    
+    max_retries = 5
+    retry_count = 0
+    initial_waiting_time = 30
+    while response.status_code != 201 and retry_count <= max_retries:
+        logger.warning(f"Retrying to connect to create category endpoint. Waiting for {(2**retry_count) * initial_waiting_time} seconds")
+        time.sleep((2**retry_count) * initial_waiting_time)
+        response = requests.post(endpoint, data=json.dumps(body), headers=headers)
+        retry_count = retry_count + 1
 
     if response.status_code != 201:
         message = f"Unable to create {category_name}"
         utils.send_email(message, access_token)
-        #logger.error(response.json())
         logger.error(f"response.text: {response.text}")
         raise ConnectionError(message)
-    #print("category created")
+    
     return category_name

@@ -3,7 +3,7 @@ import SharedCalendar
 import argparse
 from datetime import datetime
 from SimpleEvent import SimpleEvent
-from os import path
+import os
 from datetime import timedelta 
 import time
 import logging
@@ -57,11 +57,13 @@ def sanitize_input(start_date, end_date):
 def retrieve_and_update_calendars(current_date, end_date, group_members, grouping, access_token):
     logger.debug(f"{current_date} to {end_date}")
     individual_calendars_events = []
+    missing_calendars_netids = []
     
     # Create a list of lists in chunks of size grouping
     for group in [group_members[i : i + grouping] for i in range(0, len(group_members), grouping)]:
         individual_calendars = IndividualCalendar.get_individual_calendars(current_date, end_date, group, access_token)
-        individual_events_block = IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date)
+        individual_events_block, missing_calendars = IndividualCalendar.process_individual_calendars(individual_calendars, current_date, end_date)
+        missing_calendars_netids.extend(missing_calendars)
         if individual_events_block: 
             individual_calendars_events.extend(individual_events_block)
 
@@ -69,7 +71,10 @@ def retrieve_and_update_calendars(current_date, end_date, group_members, groupin
     shared_calendar_id = SharedCalendar.get_shared_calendar_id(configs['shared_calendar_name'], access_token)
     shared_calendar = SharedCalendar.get_shared_calendar(shared_calendar_id, current_date, end_date, access_token)
     shared_calendar_events, event_ids = SharedCalendar.process_shared_calendar(shared_calendar, group_members)
-    SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids, shared_calendar_id, configs['category_name'], configs['category_color'], access_token)
+    
+    SharedCalendar.update_shared_calendar(individual_calendars_events, shared_calendar_events, event_ids,
+                                          shared_calendar_id, configs['category_name'], configs['category_color'],
+                                          missing_calendars_netids, access_token)
 
 def main(configs):
     args = process_args()
@@ -83,22 +88,21 @@ def main(configs):
     app = PublicClientApplication(client_id=configs['client_id'], authority=f"https://login.microsoftonline.com/{configs['tenant_id']}")
 
     if args.generate_report:
-            group_name = args.generate_report[0]
-            dates = sanitize_input(args.generate_report[1], args.generate_report[2])
-            start_date = dates[0]
-            end_date = dates[1]
-            access_token = utils.acquire_access_token(app, configs['scopes'])
-            current_date = start_date
-            emails = utils.get_email_list_from_ldap(group_name)
-            while (current_date + timedelta(14) <= end_date):
-                temp_end_date = current_date + timedelta(14)
-                GenerateReport.generate_report_for_specified_group(emails, current_date, temp_end_date, access_token)
-                current_date = temp_end_date
-            
-            if (current_date < end_date):
-                GenerateReport.generate_report_for_specified_group(emails, current_date, end_date, access_token)
-            return
-
+        group_name = args.generate_report[0]
+        dates = sanitize_input(args.generate_report[1], args.generate_report[2])
+        start_date = dates[0]
+        end_date = dates[1]
+        access_token = utils.acquire_access_token(app, configs['scopes'])
+        current_date = start_date
+        emails = utils.get_email_list_from_ldap(group_name)
+        while (current_date + timedelta(14) <= end_date):
+            temp_end_date = current_date + timedelta(14)
+            GenerateReport.generate_report_for_specified_group(emails, current_date, temp_end_date, access_token)
+            current_date = temp_end_date
+        
+        if (current_date < end_date):
+            GenerateReport.generate_report_for_specified_group(emails, current_date, end_date, access_token)
+        return
 
     count = 0
     while True:
@@ -139,17 +143,17 @@ def main(configs):
         time.sleep(configs['update_interval'])
             
 if __name__ == '__main__':
-    # Redirects stdout stderr to out.log
-    sys.stderr = open('out.log', 'w')
+    log_dir = os.getenv('VCS_LOG') # /etc/vcs/config
+    
+    # Redirects stdout stderr to error.log
+    sys.stderr = open(f"{log_dir}error.log", 'w')
     
     configs = utils.get_configurations()
     
     formater = logging.Formatter('%(name)s:%(asctime)s:%(filename)s:%(levelname)s:%(message)s')
-    if not path.exists(configs['vcs_directory']):
-        raise KeyError(f"{configs['vcs_directory']} does not exist.")
-    
+        
     debug_file = 'vcs_debug'
-    rotate_file_handler_info = handlers.RotatingFileHandler(f"{configs['vcs_directory']}{debug_file}.log", mode='a', maxBytes=2000000, backupCount=2)
+    rotate_file_handler_info = handlers.RotatingFileHandler(f"{log_dir}{debug_file}.log", mode='a', maxBytes=2000000, backupCount=2)
     rotate_file_handler_info .setFormatter(fmt=formater)
     rotate_file_handler_info .setLevel(logging.DEBUG)
 
